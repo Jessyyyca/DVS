@@ -5,7 +5,7 @@ import json
 import os
 
 async def main():
-    extra_path = "pokemon/ditto"
+    extra_path = "pokemon/vulpix"
     url = f"https://pokeapi.co/api/v2/{extra_path}"
     async with aiohttp.ClientSession() as session:
         async with session.get(url) as response:
