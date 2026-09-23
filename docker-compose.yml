@@ -1,0 +1,35 @@
+# Local Postgres for DVS development.
+#
+# Usage:
+#   docker compose up -d
+#   export DVS_DB_DSN="postgres://dhw:Bride0-Viable-Outrage@localhost:5433/db?sslmode=disable"
+#   dvs limitless --from-date 2026-01-01 --test
+#   dvs generate-sql | docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U dhw -d db
+#
+# Notes:
+#   - port 5433 (host) -> 5432 (container), so it doesn't fight a system Postgres
+#     installed on 5432.
+#   - sslmode=disable because the local socket is already inside a trusted docker
+#     network; never expose this on a public network without TLS + auth.
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.1-pg18-trixie
+    container_name: dvs-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dhw
+      POSTGRES_PASSWORD: Bride0-Viable-Outrage
+      POSTGRES_DB: db
+    ports:
+      - "5433:5432"
+    volumes:
+      - dvs-pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dhw -d db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  dvs-pgdata:

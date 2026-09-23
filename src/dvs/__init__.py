@@ -1,2 +1,10 @@
+"""DVS: Pokemon DWH importer (Limitless + TickerMint + PokeAPI)."""
+
+from . import api, cli, config, db
+
+__all__ = ["api", "cli", "config", "db", "main"]
+
+
 def main() -> None:
-    print("Hello from dvs!")
+    """Console-script entry point."""
+    cli.main()
