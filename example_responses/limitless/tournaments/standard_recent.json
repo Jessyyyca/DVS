@@ -1,0 +1,47 @@
+[
+    {
+        "game": "PTCG",
+        "name": "\u26a1\ufe0f Vault Of Games | NOT SO Midnight Madness #8",
+        "date": "2026-09-23T02:30:00.000Z",
+        "format": "STANDARD",
+        "id": "6ab327ece905c1db6874845b",
+        "players": 32,
+        "organizerId": 2226
+    },
+    {
+        "game": "PTCG",
+        "name": "Torneo Rel\u00e1mpago \u26a1 #82 PTCG Live (25 CODES)",
+        "date": "2026-09-23T01:30:00.000Z",
+        "format": "STANDARD",
+        "id": "6a8c61df81741245b151d823",
+        "players": 13,
+        "organizerId": 2512
+    },
+    {
+        "game": "PTCG",
+        "name": "Pudding Weekly #14 | What's faster sound or light?",
+        "date": "2026-09-23T01:00:00.000Z",
+        "format": "STANDARD",
+        "id": "6ab0812de905c1db687469ae",
+        "players": 116,
+        "organizerId": 2720
+    },
+    {
+        "game": "PTCG",
+        "name": "Last Prize Series S4 #1",
+        "date": "2026-09-22T23:35:00.000Z",
+        "format": "STANDARD",
+        "id": "6ab181dae905c1db687472a2",
+        "players": 123,
+        "organizerId": 2227
+    },
+    {
+        "game": "PTCG",
+        "name": "Torneo Sidedeck Online Gratis Martes 22 Septiembre",
+        "date": "2026-09-22T23:00:00.000Z",
+        "format": "STANDARD",
+        "id": "6ab2f3a4f127b1b52c27fec6",
+        "players": 41,
+        "organizerId": 2306
+    }
+]
