@@ -169,6 +169,19 @@ def candidate_number(c: dict) -> str:
     )
 
 
+# TickerMint's /products/search payload typically exposes every field
+# card_product needs (name, set_name, group_id, collector_number, rarity,
+# image_url). When those keys are present we can persist directly
+# without an extra /products/{pid} GET, which is the dominant cost
+# during a rematch against many cards.
+_SEARCH_KEYS = ("name", "set_name", "group_id", "rarity")
+
+
+def _search_payload_sufficient(candidate: dict) -> bool:
+    """True when the search response carries all fields _save_product reads."""
+    return all(k in candidate for k in _SEARCH_KEYS)
+
+
 def filter_candidates(
     candidates: list[dict],
     card_name: str,
@@ -430,14 +443,25 @@ class TickermintProductsImporter(ApiImporter):
                     "candidate(s), %d new mapping(s) after filter (pool=%d)",
                     card_id, query, len(candidates), kept, len(pool),
                 )
-                # The full query alone usually covers exact matches; stop
-                # issuing more requests once we've found any rows.
-                if pool and query == ordered[0]:
+                # Skip broader passes once we've locked in the precise
+                # tier -- exact_number is unambiguous (name + number),
+                # so the wider queries would just add extra API calls
+                # and fuzzy noise.
+                precise = any(
+                    payload_kind == "exact_number"
+                    for _, payload_kind, _, _ in pool.values()
+                )
+                if precise and query == ordered[0]:
                     log.debug(
-                        "_match_card cascade stop after full query for "
-                        "card_id=%d (pool=%d)",
+                        "_match_card cascade stop after exact_number hit "
+                        "for card_id=%d (pool=%d)",
                         card_id, len(pool),
                     )
+                    break
+                # Otherwise cap the broader-pass cycle to just one more
+                # round (full -> name+set / -> name) so we don't pay a
+                # third round-trip for name-only fallbacks.
+                if query != ordered[0]:
                     break
 
             log.debug(
@@ -457,8 +481,7 @@ class TickermintProductsImporter(ApiImporter):
                     "_match_card wiped old mappings for card_id=%d", card_id
                 )
                 kinds: list[str] = []
-                for _, (candidate, kind, similarity, query) in pool.items():
-                    pid = get_product_id(candidate)
+                for pid, (candidate, kind, similarity, query) in pool.items():
                     if pid is None:
                         log.debug(
                             "_match_card skip persist: pid missing on "
@@ -471,9 +494,16 @@ class TickermintProductsImporter(ApiImporter):
                         "kind=%s similarity=%s query=%r",
                         card_id, pid, kind, similarity, query,
                     )
-                    detail = await self.get_json(
-                        session, f"{API_BASE}/products/{pid}"
-                    )
+                    # Reuse the search payload when it already exposes
+                    # the fields card_product needs; avoids one
+                    # /products/{pid} GET per candidate. Falls back to
+                    # a detail fetch when critical fields are missing.
+                    if _search_payload_sufficient(candidate):
+                        detail = candidate
+                    else:
+                        detail = await self.get_json(
+                            session, f"{API_BASE}/products/{pid}"
+                        )
                     product_id = await self._save_product(conn, detail, pid)
                     await conn.execute(
                         """
