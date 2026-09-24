@@ -141,7 +141,7 @@ class LimitlessImporter(ApiImporter):
         from_date: date,
         to_date: date,
         format: str = "STANDARD",
-        max_pages: int = 100,
+        max_pages: int = 10000,
         concurrency: int = 4,
         session: aiohttp.ClientSession | None = None,
     ) -> None:
