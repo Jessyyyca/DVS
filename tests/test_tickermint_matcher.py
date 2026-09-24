@@ -1,11 +1,11 @@
-"""Pure tests for the conservative TickerMint candidate matcher."""
+"""Pure tests for the TickerMint candidate filter."""
 
 from __future__ import annotations
 
 from dvs.api.tickermint_products import (
     candidate_name,
     candidate_number,
-    choose_candidate,
+    filter_candidates,
     get_product_id,
     pick,
     set_fields,
@@ -58,27 +58,41 @@ def test_set_fields_handles_dict_and_scalar() -> None:
     assert name is None and gid is None
 
 
-def test_choose_candidate_prefers_name_plus_number() -> None:
+def test_filter_candidates_unmatched_when_empty() -> None:
+    assert filter_candidates([], "Pikachu", "58") == []
+
+
+def test_filter_candidates_keeps_only_name_matches() -> None:
+    """Candidates with a different name are dropped, even with the right number."""
     c1 = _c(name="Pikachu", number="58")
-    c2 = _c(name="Pikachu", number="58")
-    chosen, status = choose_candidate([c1, c2], "Pikachu", "58")
-    assert status == "ambiguous"
+    c2 = _c(name="Raichu", number="58")
+    out = filter_candidates([c1, c2], "Pikachu", "58")
+    assert out == [(c1, "exact_number")]
 
 
-def test_choose_candidate_unique_number_match() -> None:
+def test_filter_candidates_tags_exact_number_above_exact_name() -> None:
+    """When at least one candidate lines up on number, only those are kept."""
     c1 = _c(name="Pikachu", number="58")
-    chosen, status = choose_candidate([c1], "Pikachu", "58")
-    assert status == "matched"
-    assert chosen is c1
+    c2 = _c(name="Pikachu", number="99")
+    out = filter_candidates([c1, c2], "Pikachu", "58")
+    assert out == [(c1, "exact_number")]
 
 
-def test_choose_candidate_unique_name_only() -> None:
+def test_filter_candidates_falls_back_to_exact_name() -> None:
+    """No number match -> all name-match candidates kept as exact_name."""
     c1 = _c(name="Pikachu", number="")
-    chosen, status = choose_candidate([c1], "Pikachu", None)
-    assert status == "matched"
-    assert chosen is c1
+    c2 = _c(name="Pikachu", number="3")
+    out = filter_candidates([c1, c2], "Pikachu", None)
+    kinds = [kind for _, kind in out]
+    assert kinds == ["exact_name", "exact_name"]
+    assert {c["name"] for c, _ in out} == {"Pikachu"}
 
 
-def test_choose_candidate_unmatched_when_empty() -> None:
-    _, status = choose_candidate([], "Pikachu", "58")
-    assert status == "unmatched"
+def test_filter_candidates_returns_many_when_ambiguous() -> None:
+    """1:N: the whole pile survives, never collapses to a single row."""
+    c1 = _c(name="Wiglett", number="47")
+    c2 = _c(name="Wiglett", number="47")
+    c3 = _c(name="Wiglett", number="47")
+    out = filter_candidates([c1, c2, c3], "Wiglett", "47")
+    assert len(out) == 3
+    assert all(kind == "exact_number" for _, kind in out)

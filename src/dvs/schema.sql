@@ -148,15 +148,24 @@ CREATE TABLE IF NOT EXISTS daily_price (
 CREATE INDEX IF NOT EXISTS ix_daily_price_date    ON daily_price (price_date);
 CREATE INDEX IF NOT EXISTS ix_daily_price_product ON daily_price (product_id);
 
+-- 1:N: one Limitless card identity can map to many TickerMint products
+-- (all candidates the search returned). match_kind records whether the
+-- collector number also matched (exact_number) or only the name matched
+-- (exact_name), so reviewers can triage without re-querying the API.
+-- The matcher wipes existing rows for a card_id before re-inserting so
+-- the table stays in lockstep with what TickerMint returned on the most
+-- recent run.
 CREATE TABLE IF NOT EXISTS limitless_card_map (
-    limitless_card_id BIGINT PRIMARY KEY REFERENCES card(card_id) ON DELETE CASCADE,
-    product_id        BIGINT NULL REFERENCES card_product(product_id) ON DELETE SET NULL,
-    match_status      TEXT NOT NULL CHECK (
-        match_status IN ('matched', 'unmatched', 'ambiguous')
+    limitless_card_id BIGINT NOT NULL REFERENCES card(card_id) ON DELETE CASCADE,
+    product_id        BIGINT NOT NULL REFERENCES card_product(product_id) ON DELETE CASCADE,
+    match_kind        TEXT NOT NULL CHECK (
+        match_kind IN ('exact_number', 'exact_name')
     ),
     search_query      TEXT NOT NULL,
-    matched_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
-    note              TEXT
+    captured_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (limitless_card_id, product_id)
 );
+CREATE INDEX IF NOT EXISTS ix_limitless_card_map_product
+    ON limitless_card_map (product_id);
 
 COMMIT;

@@ -150,8 +150,6 @@ class TickermintPricesImporter(ApiImporter):
                     """
                     SELECT DISTINCT m.product_id
                     FROM limitless_card_map m
-                    WHERE m.match_status = 'matched'
-                      AND m.product_id IS NOT NULL
                     ORDER BY m.product_id
                     """
                 )

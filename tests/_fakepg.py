@@ -94,23 +94,61 @@ class FakeConnection:
         return "INSERT 1"
 
     async def _delete(self, q: str, args: tuple[Any, ...]) -> str:
-        after = q.split("DELETE FROM", 1)[1].strip()
-        name = after.split(" ", 1)[0].strip()
+        head = q.split("DELETE FROM", 1)[1].strip()
+        name = head.split(" ", 1)[0].strip()
         t = self._tables[name]
         before = len(t.rows)
-        # We only support DELETE WHERE pk = $1.
         if "WHERE" not in q:
             t.rows.clear()
-        else:
-            col = q.split("=", 1)[1].split("$", 1)[1].split(" ", 1)[0]
-            key = tuple(args[0]) if col.endswith("(") else args[0]
-            t.rows.pop(key, None)
+            return f"DELETE {before}"
+
+        # Parse the WHERE clause into (column, value) pairs in order.
+        where = q.split("WHERE", 1)[1]
+        pairs: list[tuple[str, Any]] = []
+        for chunk in where.split("AND"):
+            if "=" not in chunk:
+                continue
+            left, right = chunk.split("=", 1)
+            col = left.strip().split(".")[-1]
+            if "$" in right:
+                idx = int(right.split("$", 1)[1].split(" ", 1)[0]) - 1
+                pairs.append((col, args[idx]))
+
+        def keep(row: dict[str, Any]) -> bool:
+            for col, value in pairs:
+                if row.get(col) != value:
+                    return False
+            return True
+
+        t.rows = {k: r for k, r in t.rows.items() if not keep(r)}
         return f"DELETE {before - len(t.rows)}"
 
     async def _update(self, q: str, args: tuple[Any, ...]) -> str:
         return "UPDATE 1"
 
     async def fetch(self, query: str, *args: Any) -> list[dict[str, Any]]:
+        q = " ".join(query.split())
+        if q.startswith("SELECT DISTINCT m.product_id"):
+            t = self._tables.get("limitless_card_map")
+            if not t:
+                return []
+            seen: set[int] = set()
+            for row in t.rows.values():
+                pid = row.get("product_id")
+                if pid is not None:
+                    seen.add(pid)
+            return [{"product_id": pid} for pid in sorted(seen)]
+        if q.startswith("SELECT card_id, card_name, set_code, card_number"):
+            t = self._tables["card"]
+            return [
+                {
+                    "card_id": r["card_id"],
+                    "card_name": r["card_name"],
+                    "set_code": r["set_code"],
+                    "card_number": r["card_number"],
+                }
+                for r in t.rows.values()
+            ]
         return []
 
     async def fetchrow(self, query: str, *args: Any) -> dict[str, Any] | None:
@@ -207,7 +245,7 @@ def make_pool() -> FakePool:
             ),
             "limitless_card_map": _Table(
                 "limitless_card_map",
-                primary_key=("limitless_card_id",),
+                primary_key=("limitless_card_id", "product_id"),
             ),
             "printing": _Table(
                 "printing", primary_key=("product_id", "printing_type")

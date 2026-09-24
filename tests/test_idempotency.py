@@ -160,6 +160,104 @@ async def test_daily_price_upsert_is_idempotent() -> None:
 
 
 @pytest.mark.asyncio
+async def test_limitless_card_map_wipe_and_replace_is_idempotent() -> None:
+    """Re-running a match for a card must replace stale candidates cleanly.
+
+    The 1:N map wipes existing rows for limitless_card_id before
+    re-inserting, so shrinking/changing candidates leaves no residue.
+    No candidate should also leave the table empty for that card.
+    """
+    pool = make_pool()
+    imp = TickermintProductsImporter(pool, rate_limit=_rate_limit())
+    async with pool.acquire() as conn:
+        # Manually wire a card and three mapping rows for it.
+        await conn.execute(
+            "INSERT INTO card (card_id, card_name, set_code, card_number) "
+            "VALUES ($1, $2, $3, $4)",
+            1, "Wiglett", "TEF", "47",
+        )
+        await conn.execute(
+            "INSERT INTO card_product (product_id, card_name) "
+            "VALUES ($1, $2)",
+            100, "Wiglett",
+        )
+        await conn.execute(
+            "INSERT INTO card_product (product_id, card_name) "
+            "VALUES ($1, $2)",
+            101, "Wiglett",
+        )
+        await conn.execute(
+            "INSERT INTO card_product (product_id, card_name) "
+            "VALUES ($1, $2)",
+            102, "Wiglett",
+        )
+
+        # First run: keep all three mappings (idempotent insert path).
+        for pid in (100, 101, 102):
+            await conn.execute(
+                "INSERT INTO limitless_card_map "
+                "(limitless_card_id, product_id, match_kind, search_query) "
+                "VALUES ($1, $2, $3, $4) "
+                "ON CONFLICT (limitless_card_id, product_id) DO NOTHING",
+                1, pid, "exact_number", "Wiglett TEF 47",
+            )
+        assert len(pool._tables["limitless_card_map"].rows) == 3
+
+        # Wipe-and-replace with a smaller set. Replaces 100 + 101 with 100
+        # only -- 102 must disappear, no duplicate 100 must remain.
+        await conn.execute(
+            "DELETE FROM limitless_card_map WHERE limitless_card_id = $1",
+            1,
+        )
+        await conn.execute(
+            "INSERT INTO limitless_card_map "
+            "(limitless_card_id, product_id, match_kind, search_query) "
+            "VALUES ($1, $2, $3, $4) "
+            "ON CONFLICT (limitless_card_id, product_id) DO NOTHING",
+            1, 100, "exact_number", "Wiglett TEF 47",
+        )
+
+    rows = pool._tables["limitless_card_map"].rows
+    assert len(rows) == 1
+    only = next(iter(rows.values()))
+    assert only["product_id"] == 100
+    assert only["limitless_card_id"] == 1
+
+
+@pytest.mark.asyncio
+async def test_limitless_card_map_replace_with_no_candidates() -> None:
+    """A search that returns nothing must still clean up prior rows."""
+    pool = make_pool()
+    imp = TickermintProductsImporter(pool, rate_limit=_rate_limit())
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO card (card_id, card_name, set_code, card_number) "
+            "VALUES ($1, $2, $3, $4)",
+            2, "Mewtwo", "base1", "10",
+        )
+        await conn.execute(
+            "INSERT INTO card_product (product_id, card_name) "
+            "VALUES ($1, $2)",
+            200, "Mewtwo",
+        )
+        await conn.execute(
+            "INSERT INTO limitless_card_map "
+            "(limitless_card_id, product_id, match_kind, search_query) "
+            "VALUES ($1, $2, $3, $4)",
+            2, 200, "exact_number", "Mewtwo base1 10",
+        )
+        assert len(pool._tables["limitless_card_map"].rows) == 1
+
+        # Match returns nothing -> wipe, insert nothing.
+        await conn.execute(
+            "DELETE FROM limitless_card_map WHERE limitless_card_id = $1",
+            2,
+        )
+
+    assert pool._tables["limitless_card_map"].rows == {}
+
+
+@pytest.mark.asyncio
 async def test_card_product_upsert_merges() -> None:
     pool = make_pool()
     imp = TickermintProductsImporter(pool, rate_limit=_rate_limit())

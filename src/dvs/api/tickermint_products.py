@@ -24,15 +24,17 @@ CREATE TABLE IF NOT EXISTS card_product (
     group_id BIGINT NULL
 );
 
+-- 1:N: one Limitless card identity can map to many TickerMint products.
+-- The matcher wipes existing rows for a card_id before re-inserting.
 CREATE TABLE IF NOT EXISTS limitless_card_map (
-    limitless_card_id BIGINT PRIMARY KEY,
-    product_id BIGINT NULL REFERENCES card_product(product_id),
-    match_status TEXT NOT NULL CHECK (
-        match_status IN ('matched', 'unmatched', 'ambiguous')
+    limitless_card_id BIGINT NOT NULL REFERENCES card(card_id) ON DELETE CASCADE,
+    product_id BIGINT NOT NULL REFERENCES card_product(product_id) ON DELETE CASCADE,
+    match_kind TEXT NOT NULL CHECK (
+        match_kind IN ('exact_number', 'exact_name')
     ),
     search_query TEXT NOT NULL,
-    matched_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    note TEXT NULL
+    captured_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (limitless_card_id, product_id)
 );
 """
 
@@ -88,28 +90,31 @@ def candidate_number(c: dict) -> str:
     )
 
 
-def choose_candidate(
+def filter_candidates(
     candidates: list[dict],
     card_name: str,
     card_number: str | None,
-) -> tuple[dict | None, str]:
-    """Conservative matching: exact name + collector number, else unique exact name."""
-    exact_name = [
+) -> list[tuple[dict, str]]:
+    """Return every name-matching product tagged with how well it fits.
+
+    match_kind is 'exact_number' when name and collector number both line
+    up, and 'exact_name' when only the name does. Returns [] when no
+    candidate shares the card's name (the Limitless card is unmatched).
+    """
+    name_matches = [
         c for c in candidates if norm(candidate_name(c)) == norm(card_name)
     ]
+    if not name_matches:
+        return []
     if card_number:
-        exact = [
-            c for c in exact_name if norm(candidate_number(c)) == norm(card_number)
+        with_number = [
+            c
+            for c in name_matches
+            if norm(candidate_number(c)) == norm(card_number)
         ]
-        if len(exact) == 1:
-            return exact[0], "matched"
-        if len(exact) > 1:
-            return None, "ambiguous"
-    if len(exact_name) == 1:
-        return exact_name[0], "matched"
-    if len(exact_name) > 1:
-        return None, "ambiguous"
-    return None, "unmatched"
+        if with_number:
+            return [(c, "exact_number") for c in with_number]
+    return [(c, "exact_name") for c in name_matches]
 
 
 def set_fields(detail: dict) -> tuple[str | None, int | None]:
@@ -227,55 +232,62 @@ class TickermintProductsImporter(ApiImporter):
                 params={"q": query, "game": "pokemon"},
             )
             candidates = to_results(payload)
-            chosen, status = choose_candidate(candidates, card_name, card_number)
+            pairs = filter_candidates(candidates, card_name, card_number)
 
-            product_id: int | None = None
-            note: str | None = None
-
-            if chosen is not None:
-                pid = get_product_id(chosen)
-                if pid is None:
-                    status = "unmatched"
-                    note = "Candidate did not expose a product_id."
-                else:
+            kinds: list[str] = []
+            async with conn.transaction():
+                # Wipe this card's mapping rows first so the table stays
+                # in lockstep with what TickerMint just returned -- stale
+                # candidates from a previous run do not linger.
+                await conn.execute(
+                    "DELETE FROM limitless_card_map WHERE limitless_card_id = $1",
+                    card_id,
+                )
+                for candidate, kind in pairs:
+                    pid = get_product_id(candidate)
+                    if pid is None:
+                        continue
                     detail = await self.get_json(
                         session, f"{API_BASE}/products/{pid}"
                     )
                     product_id = await self._save_product(conn, detail, pid)
-            else:
-                note = (
-                    f"{len(candidates)} search candidate(s). "
-                    "Review manually if needed."
-                )
+                    await conn.execute(
+                        """
+                        INSERT INTO limitless_card_map (
+                            limitless_card_id, product_id,
+                            match_kind, search_query, captured_at
+                        ) VALUES ($1, $2, $3, $4, now())
+                        ON CONFLICT (limitless_card_id, product_id) DO NOTHING
+                        """,
+                        card_id,
+                        product_id,
+                        kind,
+                        query,
+                    )
+                    kinds.append(kind)
 
-            await conn.execute(
-                """
-                INSERT INTO limitless_card_map (
-                    limitless_card_id, product_id, match_status,
-                    search_query, matched_at, note
-                ) VALUES ($1, $2, $3, $4, now(), $5)
-                ON CONFLICT (limitless_card_id) DO UPDATE
-                SET product_id = EXCLUDED.product_id,
-                    match_status = EXCLUDED.match_status,
-                    search_query = EXCLUDED.search_query,
-                    matched_at = now(),
-                    note = EXCLUDED.note
-                """,
+        if not kinds:
+            self.logger.info(
+                "%d: %s %s %s -> unmatched",
                 card_id,
-                product_id,
-                status,
-                query,
-                note,
+                card_name,
+                set_code or "",
+                card_number or "",
             )
+            return
 
+        tally: dict[str, int] = {}
+        for kind in kinds:
+            tally[kind] = tally.get(kind, 0) + 1
+        summary = ", ".join(f"{n} {k}" for k, n in tally.items())
         self.logger.info(
-            "%d: %s %s %s -> %s %s",
+            "%d: %s %s %s -> %d candidate(s) [%s]",
             card_id,
             card_name,
             set_code or "",
             card_number or "",
-            status,
-            product_id or "",
+            len(kinds),
+            summary,
         )
 
     async def _save_product(self, conn, detail: dict, fallback_product_id: int) -> int:
