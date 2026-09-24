@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dvs.api.tickermint_products import (
+    FUZZY_THRESHOLD,
     candidate_name,
     candidate_number,
     filter_candidates,
@@ -67,7 +68,7 @@ def test_filter_candidates_keeps_only_name_matches() -> None:
     c1 = _c(name="Pikachu", number="58")
     c2 = _c(name="Raichu", number="58")
     out = filter_candidates([c1, c2], "Pikachu", "58")
-    assert out == [(c1, "exact_number")]
+    assert out == [(c1, "exact_number", None)]
 
 
 def test_filter_candidates_tags_exact_number_above_exact_name() -> None:
@@ -75,7 +76,14 @@ def test_filter_candidates_tags_exact_number_above_exact_name() -> None:
     c1 = _c(name="Pikachu", number="58")
     c2 = _c(name="Pikachu", number="99")
     out = filter_candidates([c1, c2], "Pikachu", "58")
-    assert out == [(c1, "exact_number")]
+    assert out == [(c1, "exact_number", None)]
+
+
+def test_filter_candidates_normalizes_leading_zeros_in_number() -> None:
+    """'83' from Limitless must match '083/217' from TickerMint."""
+    c1 = _c(name="Marill", number="083/217")
+    out = filter_candidates([c1], "Marill", "83")
+    assert out == [(c1, "exact_number", None)]
 
 
 def test_filter_candidates_falls_back_to_exact_name() -> None:
@@ -83,9 +91,9 @@ def test_filter_candidates_falls_back_to_exact_name() -> None:
     c1 = _c(name="Pikachu", number="")
     c2 = _c(name="Pikachu", number="3")
     out = filter_candidates([c1, c2], "Pikachu", None)
-    kinds = [kind for _, kind in out]
+    kinds = [kind for _, kind, _ in out]
     assert kinds == ["exact_name", "exact_name"]
-    assert {c["name"] for c, _ in out} == {"Pikachu"}
+    assert {c["name"] for c, _, _ in out} == {"Pikachu"}
 
 
 def test_filter_candidates_returns_many_when_ambiguous() -> None:
@@ -95,4 +103,38 @@ def test_filter_candidates_returns_many_when_ambiguous() -> None:
     c3 = _c(name="Wiglett", number="47")
     out = filter_candidates([c1, c2, c3], "Wiglett", "47")
     assert len(out) == 3
-    assert all(kind == "exact_number" for _, kind in out)
+    assert all(kind == "exact_number" for _, kind, _ in out)
+
+
+def test_filter_candidates_fuzzy_falls_back_when_no_exact_match() -> None:
+    """Without an exact-name hit, leading-prefix scoring kicks in below FUZZY_THRESHOLD."""
+    # Replicates the real TickerMint shape: "Marill - 083/217 (Friend Ball)".
+    c1 = _c(name="Marill - 083/217 (Friend Ball)", number="083/217")
+    out = filter_candidates([c1], "Marill", "83")
+    assert len(out) == 1
+    cand, kind, similarity = out[0]
+    assert cand is c1
+    assert kind == "fuzzy"
+    assert similarity is not None
+    assert similarity >= FUZZY_THRESHOLD
+
+
+def test_filter_candidates_fuzzy_ranks_higher_score_first() -> None:
+    """Higher leading-prefix coverage comes first; ties broken by product_id."""
+    c_perfect = _c(name="Marill", number="083/217", product_id=10)
+    c_close = _c(name="Marill - 083/217 (Friend Ball)", number="083/217", product_id=11)
+    c_loose = _c(
+        name="MarillFriend - 083/217 (Promo)", number="083/217", product_id=12
+    )
+    out = filter_candidates(
+        [c_loose, c_close, c_perfect], "Marill", "083/217"
+    )
+    # All three pass the threshold; best score first.
+    scores = [s for _, _, s in out]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_filter_candidates_drops_truly_unrelated_names() -> None:
+    c1 = _c(name="Completely Unrelated Name", number="99")
+    out = filter_candidates([c1], "Marill", "83")
+    assert out == []

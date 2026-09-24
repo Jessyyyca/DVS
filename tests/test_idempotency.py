@@ -258,6 +258,37 @@ async def test_limitless_card_map_replace_with_no_candidates() -> None:
 
 
 @pytest.mark.asyncio
+async def test_limitless_card_map_fuzzy_row_persists_similarity() -> None:
+    """Fuzzy-tier rows must persist the rapidfuzz score alongside the FK."""
+    pool = make_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO card (card_id, card_name, set_code, card_number) "
+            "VALUES ($1, $2, $3, $4)",
+            9, "Marill", "ASC", "83",
+        )
+        await conn.execute(
+            "INSERT INTO card_product (product_id, card_name) "
+            "VALUES ($1, $2)",
+            300, "Marill - 083/217 (Friend Ball)",
+        )
+        await conn.execute(
+            "INSERT INTO limitless_card_map "
+            "(limitless_card_id, product_id, match_kind, similarity, "
+            "search_query) "
+            "VALUES ($1, $2, $3, $4, $5) "
+            "ON CONFLICT (limitless_card_id, product_id) DO NOTHING",
+            9, 300, "fuzzy", 92, "Marill ASC 83",
+        )
+
+    rows = pool._tables["limitless_card_map"].rows
+    assert len(rows) == 1
+    only = next(iter(rows.values()))
+    assert only["match_kind"] == "fuzzy"
+    assert only["similarity"] == 92
+
+
+@pytest.mark.asyncio
 async def test_card_product_upsert_merges() -> None:
     pool = make_pool()
     imp = TickermintProductsImporter(pool, rate_limit=_rate_limit())

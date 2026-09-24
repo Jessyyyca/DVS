@@ -159,7 +159,12 @@ CREATE TABLE IF NOT EXISTS limitless_card_map (
     limitless_card_id BIGINT NOT NULL REFERENCES card(card_id) ON DELETE CASCADE,
     product_id        BIGINT NOT NULL REFERENCES card_product(product_id) ON DELETE CASCADE,
     match_kind        TEXT NOT NULL CHECK (
-        match_kind IN ('exact_number', 'exact_name')
+        match_kind IN ('exact_number', 'exact_name', 'fuzzy')
+    ),
+    -- 0..100 similarity score from rapidfuzz for fuzzy rows; NULL for
+    -- the exact tiers so existing rows stay valid on schema migration.
+    similarity        INT CHECK (
+        similarity IS NULL OR (similarity BETWEEN 0 AND 100)
     ),
     search_query      TEXT NOT NULL,
     captured_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -167,5 +172,7 @@ CREATE TABLE IF NOT EXISTS limitless_card_map (
 );
 CREATE INDEX IF NOT EXISTS ix_limitless_card_map_product
     ON limitless_card_map (product_id);
+CREATE INDEX IF NOT EXISTS ix_limitless_card_map_similarity
+    ON limitless_card_map (similarity);
 
 COMMIT;
