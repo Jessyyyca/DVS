@@ -1,137 +1,134 @@
-"""Match Limitless cards to TickerMint products (was 02_...)."""
+"""TickerMint products importer (was 02_match_tickermint_products.py).
+
+For every Limitless card in the ``card`` table, build a single search
+query of the form ``"{card_name} {card_set_number}/{set_number}"`` --
+where ``set_number`` is the TickerMint denominator resolved from the
+Limitless ``set_code`` via the static map in :mod:`dvs.api.static` --
+and POST it to ``/products/search``. The first candidate whose name
+prefix-matches the queried card_name is treated as the match; one
+upsert per card is written to ``card_product``.
+
+Design notes:
+
+* One HTTP request per card. We do NOT chase a follow-up detail call
+  (/products/{id}); all fields we persist come from the search
+  candidate.
+* Idempotent: rerunning is safe. ``card_product.card_id`` is the PK.
+  A later run that misses a previously matched card overwrites the row
+  with a NULL product_id; a later run that hits a previously missed
+  card overwrites the NULL row with the new product.
+* Missing pieces (no card_number, or set_code with no denominator
+  mapping) skip the HTTP call entirely and write a NULL row so the
+  attempt is visible to later runs and to callers.
+* The concrete request URL is logged at DEBUG so a postmortem on a
+  surprised row can reproduce the exact search.
+"""
 
 from __future__ import annotations
 
 import asyncio
 import logging
 import re
+import time
+from collections.abc import Iterable
 from typing import Any
 
 import aiohttp
 
 from .base import ApiImporter
+from .static import denominator_for
 
 API_BASE = "https://api.tickermint.cards"
 
-DDL = """
+# ---------------------------------------------------------------------------
+# Default schema (idempotent CREATE IF NOT EXISTS) and additive migrations.
+# ---------------------------------------------------------------------------
+# The DEFAULT_SCHEMA is the target shape. CREATE TABLE IF NOT EXISTS is a
+# no-op against an existing table, so reruns are safe.
+#
+# The MIGRATIONS list is applied unconditionally on every setup_schema()
+# call. Each entry is ADD ONLY: ALTER TABLE ... ADD COLUMN IF NOT EXISTS
+# or CREATE [UNIQUE] INDEX IF NOT EXISTS. There are NO DROP / TRUNCATE /
+# RENAME statements here -- rerunning setup_schema() never destroys
+# existing rows.
+#
+# Why ADD COLUMN IF NOT EXISTS matters: an older run may have created
+# card_product with the legacy shape (product_id BIGINT PRIMARY KEY,
+# card_name TEXT NOT NULL, set_name, collector_number, rarity, image_url,
+# source_url, group_id). The default CREATE IF NOT EXISTS is then a
+# no-op, and the legacy table lacks card_id, search_query, set_number,
+# card_set_number, fetched_at. The migrations add those columns as
+# nullable (NULL is fine for both upserts and existing rows).
+#
+# The UNIQUE constraint on product_id is added as a UNIQUE INDEX IF
+# NOT EXISTS, also non-destructive -- if duplicate product_ids already
+# exist (possible in legacy data) the index simply fails to create and
+# setup_schema() logs a warning instead of erroring out so the importer
+# can still write the new columns.
+DEFAULT_SCHEMA = """
 CREATE TABLE IF NOT EXISTS card_product (
-    product_id BIGINT PRIMARY KEY,
-    card_name TEXT NOT NULL,
-    set_name TEXT NULL,
-    collector_number TEXT NULL,
-    rarity TEXT NULL,
-    image_url TEXT NULL,
-    source_url TEXT NULL,
-    group_id BIGINT NULL
+    card_id         BIGINT PRIMARY KEY REFERENCES card(card_id) ON DELETE CASCADE,
+    product_id      BIGINT UNIQUE,
+    group_id        BIGINT,
+    card_name       TEXT,
+    rarity          TEXT,
+    search_query    TEXT,
+    set_number      TEXT,
+    card_set_number TEXT,
+    fetched_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
--- 1:N: one Limitless card identity can map to many TickerMint products.
--- The matcher wipes existing rows for a card_id before re-inserting.
--- match_kind is 'exact_number' (name + collector number match),
--- 'exact_name' (name matches after normalization), or 'fuzzy' (rapidfuzz
--- fallback). similarity is non-null only for 'fuzzy' rows.
-CREATE TABLE IF NOT EXISTS limitless_card_map (
-    limitless_card_id BIGINT NOT NULL REFERENCES card(card_id) ON DELETE CASCADE,
-    product_id BIGINT NOT NULL REFERENCES card_product(product_id) ON DELETE CASCADE,
-    match_kind TEXT NOT NULL CHECK (
-        match_kind IN ('exact_number', 'exact_name', 'fuzzy')
-    ),
-    similarity INT CHECK (
-        similarity IS NULL OR (similarity BETWEEN 0 AND 100)
-    ),
-    search_query TEXT NOT NULL,
-    captured_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (limitless_card_id, product_id)
-);
+CREATE INDEX IF NOT EXISTS ix_card_product_product ON card_product (product_id);
+CREATE INDEX IF NOT EXISTS ix_card_product_group   ON card_product (group_id);
+CREATE INDEX IF NOT EXISTS ix_card_product_name    ON card_product (lower(card_name));
 """
 
+# Each entry is one or more ADD-only statements separated by ';'. They
+# run in order, every time. There is intentionally no DROP / TRUNCATE
+# / RENAME here.
+MIGRATIONS: tuple[str, ...] = (
+    # Legacy card_product lacked these columns. Add as nullable so
+    # existing rows stay valid.
+    "ALTER TABLE card_product ADD COLUMN IF NOT EXISTS card_id         BIGINT",
+    "ALTER TABLE card_product ADD COLUMN IF NOT EXISTS search_query    TEXT",
+    "ALTER TABLE card_product ADD COLUMN IF NOT EXISTS set_number      TEXT",
+    "ALTER TABLE card_product ADD COLUMN IF NOT EXISTS card_set_number TEXT",
+    "ALTER TABLE card_product ADD COLUMN IF NOT EXISTS fetched_at      TIMESTAMPTZ",
+    # UNIQUE INDEX rather than ALTER TABLE ADD CONSTRAINT so a legacy
+    # database with duplicate product_ids can still upgrade columns
+    # (the index just won't get built; we log a warning).
+    "CREATE UNIQUE INDEX IF NOT EXISTS ux_card_product_product_id ON card_product (product_id)",
+    "CREATE INDEX        IF NOT EXISTS ix_card_product_group      ON card_product (group_id)",
+    "CREATE INDEX        IF NOT EXISTS ix_card_product_name       ON card_product (lower(card_name))",
+)
 
-def norm(value: Any) -> str:
+# ---------------------------------------------------------------------------
+# Pure helpers (also exercised by tests/test_tickermint_matcher.py).
+# ---------------------------------------------------------------------------
+
+_NON_ALNUM = re.compile(r"[^a-z0-9]+")
+
+
+def _norm(value: Any) -> str:
+    """Lowercase and strip everything that isn't alnum.
+
+    Used to compare card names across spellings and punctuation --
+    TickerMint embeds the card number in candidate names ("Pikachu
+    ex - 199/165"), the Limitless side does not, so the only reliable
+    equality check is on the alpha-numeric skeleton.
+    """
     if value is None:
         return ""
-    return re.sub(r"[^a-z0-9]+", "", str(value).lower())
+    return _NON_ALNUM.sub("", str(value).lower())
 
 
-def pick(obj: dict, *keys: str) -> Any:
-    for key in keys:
-        if key in obj and obj[key] not in (None, ""):
-            return obj[key]
-    return None
+def _to_results(payload: Any) -> list[dict]:
+    """Coerce a TickerMint search payload to ``list[dict]``.
 
-
-# Minimum rapidfuzz score (0..100) for a fuzzy match to be persisted.
-# Higher = stricter; 70 is a common default that keeps common typos out
-# while still matching "Marill" vs "Marill - 083/217 (Friend Ball)".
-FUZZY_THRESHOLD = 70
-
-
-def _number_matches(target: str, candidate: str) -> bool:
-    """Compare two collector numbers forgiving leading-zero padding.
-
-    Only the *leading digit run* of each is examined, so '83' matches
-    '083/217' (Limiterless pads numbers to 3 digits; TickerMint includes
-    the set total). '1' vs '11' is rejected because the leading digits of
-    '11' are '11', not '1'.
+    Accepts the bare-list envelope (the documented shape), an
+    envelope dict keyed by ``results`` / ``products`` / ``data`` /
+    ``items``, or a single candidate dict that exposes a product
+    identifier. Anything else yields an empty list.
     """
-    def leading(text: str) -> str:
-        digits = re.sub(r"[^0-9]", "", text).lstrip("0")
-        return digits
-
-    t = leading(target)
-    c = leading(candidate)
-    if not t or not c:
-        return False
-    if len(t) < len(c):
-        return t == c[: len(t)]
-    if len(t) > len(c):
-        return t[: len(c)] == c
-    return t == c
-
-
-def _name_prefix_score(target: str, candidate: str) -> int:
-    """Percent score for 'target is the leading token block of candidate'.
-
-    TickerMint appends ` - 083/217 (Friend Ball)` style suffixes; we strip
-    the trailing `NNN/NNN` collector number and parenthesised variant,
-    then check whether every whitespace-delimited word of target appears
-    in order at the start of the cleaned candidate. Score is the ratio of
-    target words that landed, weighted by length match -- 100 when the
-    cleaned candidate equals the target exactly, with partial credit for
-    sub-token matches (so 'Marill' vs 'MarillFriendBall' still scores
-    high). Returns 0 when the leading-word check fails.
-    """
-    def clean(text: str) -> list[str]:
-        # Strip '<name> - NNN/NNN (variant)' tail.
-        head = re.split(r"\s*-\s*\d", text, maxsplit=1)[0]
-        # Drop parentheses-and-after.
-        head = re.sub(r"\(.*", "", head)
-        # Collapse remaining whitespace and split on it.
-        return re.findall(r"[a-z0-9]+", head.lower())
-
-    tgt_words = clean(target)
-    if not tgt_words:
-        return 0
-    cand_words = clean(candidate)
-
-    matched = 0
-    i = 0
-    for w in tgt_words:
-        # Walk candidate words looking for the next one that starts with w.
-        # Substring-only (e.g. 'Marill' should match 'MarillFriendBall' as
-        # the leading block, not just as an equal token).
-        while i < len(cand_words):
-            if cand_words[i].startswith(w):
-                matched += 1
-                i += 1
-                break
-            i += 1
-        else:
-            break  # ran out of candidate words
-
-    return int(round(100 * matched / len(tgt_words)))
-
-
-def to_results(payload: Any) -> list[dict]:
     if isinstance(payload, list):
         return [x for x in payload if isinstance(x, dict)]
     if isinstance(payload, dict):
@@ -139,183 +136,136 @@ def to_results(payload: Any) -> list[dict]:
             value = payload.get(key)
             if isinstance(value, list):
                 return [x for x in value if isinstance(x, dict)]
-        if pick(payload, "product_id", "productId", "id") is not None:
+        if _product_id(payload) is not None:
             return [payload]
     return []
 
 
-def get_product_id(candidate: dict) -> int | None:
-    value = pick(candidate, "product_id", "productId", "id")
-    try:
-        return int(value)
-    except (TypeError, ValueError):
-        return None
+def _product_id(candidate: dict) -> int | None:
+    """Parse a TickerMint product id out of a candidate dict.
 
-
-def candidate_name(c: dict) -> str:
-    return str(pick(c, "name", "card_name", "product_name", "title") or "")
-
-
-def candidate_number(c: dict) -> str:
-    return str(
-        pick(
-            c,
-            "number",
-            "collector_number",
-            "collectorNumber",
-            "card_number",
-        )
-        or ""
-    )
-
-
-# TickerMint's /products/search payload typically exposes every field
-# card_product needs (name, set_name, group_id, collector_number, rarity,
-# image_url). When those keys are present we can persist directly
-# without an extra /products/{pid} GET, which is the dominant cost
-# during a rematch against many cards.
-_SEARCH_KEYS = ("name", "set_name", "group_id", "rarity")
-
-
-def _search_payload_sufficient(candidate: dict) -> bool:
-    """True when the search response carries all fields _save_product reads."""
-    return all(k in candidate for k in _SEARCH_KEYS)
-
-
-def filter_candidates(
-    candidates: list[dict],
-    card_name: str,
-    card_number: str | None,
-    *,
-    logger: logging.Logger | None = None,
-) -> list[tuple[dict, str, int | None]]:
-    """Score each candidate and bucket it as exact_number / exact_name / fuzzy.
-
-    Returns (candidate, match_kind, similarity) tuples. similarity is
-    non-null only for 'fuzzy' rows. Tiers, in order of preference:
-
-    1. exact_number: normalized candidate name == card name AND the
-       leading digits of the candidate's collector number equal the
-       Limitless card_number (handles '83' vs '083/217' numbering).
-    2. exact_name: case-insensitive normalized name match.
-    3. fuzzy: leading-token prefix score >= FUZZY_THRESHOLD; catches
-       'Marill' vs 'Marill - 083/217 (Friend Ball)' without false-
-       matching unrelated cards.
-
-    `logger` is optional; when provided, DEBUG lines are emitted for each
-    candidate decision (exact / fuzzy / dropped) so the cascade is
-    traceable without changing any returned behaviour.
+    Reads ``product_id`` / ``productId`` / ``id`` and casts to int.
+    Returns ``None`` on any failure so the caller can treat missing
+    and malformed ids uniformly.
     """
-    def d(msg: str, *args: Any) -> None:
-        if logger is not None and logger.isEnabledFor(logging.DEBUG):
-            logger.debug(msg, *args)
-
-    target_name = norm(card_name)
-    target_number = str(card_number or "").strip()
-
-    exact_name: list[dict] = []
-    fuzzy_pool: list[dict] = []
-
-    for c in candidates:
-        if not isinstance(c, dict):
-            d("filter_candidates skip: candidate is not a dict")
-            continue
-        raw_name = candidate_name(c)
-        if not raw_name:
-            d("filter_candidates skip: empty candidate name for %r", c)
-            continue
-        pid = get_product_id(c)
-        if norm(raw_name) == target_name:
-            exact_name.append(c)
-            d(
-                "filter_candidates exact_name hit: pid=%s name=%r",
-                pid, raw_name,
-            )
-        else:
-            score = _name_prefix_score(card_name, raw_name)
-            if score >= FUZZY_THRESHOLD:
-                fuzzy_pool.append((c, score))
-                d(
-                    "filter_candidates fuzzy hit: pid=%s name=%r score=%d",
-                    pid, raw_name, score,
-                )
-            else:
-                d(
-                    "filter_candidates drop: pid=%s name=%r score=%d "
-                    "< threshold %d",
-                    pid, raw_name, score, FUZZY_THRESHOLD,
-                )
-
-    if exact_name and target_number:
-        with_number = [
-            c
-            for c in exact_name
-            if _number_matches(target_number, candidate_number(c))
-        ]
-        d(
-            "filter_candidates exact_name -> exact_number: "
-            "%d/%d matched number %r",
-            len(with_number), len(exact_name), target_number,
-        )
-        if with_number:
-            return [(c, "exact_number", None) for c in with_number]
-    if exact_name:
-        d(
-            "filter_candidates exact_name tier: %d candidate(s) without "
-            "matching number",
-            len(exact_name),
-        )
-        return [(c, "exact_name", None) for c in exact_name]
-
-    # Fuzzy tier: rank by prefix score desc, ties by product_id asc.
-    fuzzy_pool.sort(
-        key=lambda pair: (-pair[1], pair[0].get("product_id", 0))
-    )
-    d(
-        "filter_candidates fuzzy tier: %d candidate(s) "
-        "after dropping below threshold %d",
-        len(fuzzy_pool), FUZZY_THRESHOLD,
-    )
-    return [(c, "fuzzy", s) for c, s in fuzzy_pool]
+    for key in ("product_id", "productId", "id"):
+        if key in candidate and candidate[key] not in (None, ""):
+            try:
+                return int(candidate[key])
+            except (TypeError, ValueError):
+                return None
+    return None
 
 
-def set_fields(detail: dict) -> tuple[str | None, int | None]:
-    raw_set = pick(detail, "set", "set_info", "group")
-    if isinstance(raw_set, dict):
-        set_name = pick(raw_set, "name", "set_name", "title")
-        group_id = pick(raw_set, "group_id", "groupId", "id")
-    else:
-        set_name = raw_set
-        group_id = pick(detail, "group_id", "groupId")
-    try:
-        group_id = int(group_id) if group_id is not None else None
-    except (TypeError, ValueError):
-        group_id = None
-    return (
-        str(set_name) if set_name not in (None, "") else None,
-        group_id,
-    )
+def _candidate_name(candidate: dict) -> str:
+    for key in ("name", "card_name", "product_name", "title"):
+        value = candidate.get(key)
+        if isinstance(value, str) and value.strip():
+            return value
+    return ""
+
+
+def _pick_match(candidates: list[dict], card_name: Any) -> dict | None:
+    """Return the first candidate whose name shares the queried prefix.
+
+    Blank query or empty candidate list → ``None``. "Prefix" is
+    computed on the alnum-lowercased skeletons, so trailing text such
+    as ``" - 199/165"`` doesn't break the match.
+    """
+    needle = _norm(card_name)
+    if not needle:
+        return None
+    for candidate in candidates:
+        if _norm(_candidate_name(candidate)).startswith(needle):
+            return candidate
+    return None
+
+
+def build_search_query(
+    card_name: Any,
+    card_set_number: Any,
+    set_number: Any,
+) -> str | None:
+    """Compose the literal ``/products/search`` query string.
+
+    The template is ``"{card_name} {card_set_number}/{set_number}"``.
+    Missing or empty pieces in any slot → ``None``; the caller skips
+    the HTTP call entirely in that case.
+    """
+    parts = [card_name, card_set_number, set_number]
+    if any(p is None or str(p).strip() == "" for p in parts):
+        return None
+    name, num, denom = (str(p).strip() for p in parts)
+    return f"{name} {num}/{denom}"
+
+
+# ---------------------------------------------------------------------------
+# Importer.
+# ---------------------------------------------------------------------------
 
 
 class TickermintProductsImporter(ApiImporter):
-    """Searches TickerMint for each Limitless card and saves product identity."""
+    """Match every Limitless card to a TickerMint product.
+
+    For each ``card`` row the importer:
+
+    1. Builds a search query from ``card.card_name``,
+       ``card.card_number`` (position within set) and the denominator
+       resolved from ``card.set_code`` via :func:`denominator_for`.
+    2. Logs the concrete URL at DEBUG, hits
+       ``GET /products/search?q=<query>&game=pokemon`` once.
+    3. Picks the first candidate whose name prefix-matches the
+       queried card_name and upserts one row into ``card_product``.
+
+    A miss (no candidates, no prefix-match, missing pieces) still
+    writes a row so the attempt is visible to later runs.
+    """
 
     name = "tickermint_products"
     api_base_url = API_BASE
 
     def api_probe_url(self) -> str:
-        # Bare / returns 404. /products/search with a no-op query is the
-        # cheapest documented endpoint and returns a small JSON envelope.
+        # Cheapest documented endpoint; we always have pokemon in the
+        # default game so this returns a small JSON envelope quickly.
         return f"{API_BASE}/products/search?q=pikachu&game=pokemon"
 
     async def setup_schema(self) -> None:
+        """Apply the default schema then run the additive migrations.
+
+        Two phases, both idempotent and both non-destructive:
+
+        1. ``DEFAULT_SCHEMA``: ``CREATE TABLE IF NOT EXISTS`` plus
+           supporting ``CREATE INDEX IF NOT EXISTS`` -- establishes the
+           target shape on a fresh database.
+        2. ``MIGRATIONS``: a fixed sequence of ``ALTER TABLE ...
+           ADD COLUMN IF NOT EXISTS`` and ``CREATE [UNIQUE] INDEX IF
+           NOT EXISTS`` -- backfills columns a legacy ``card_product``
+           might be missing without touching existing rows.
+
+        Every statement uses ``IF NOT EXISTS`` so calling
+        ``setup_schema()`` repeatedly is safe. There are no
+        ``DROP``/``TRUNCATE``/``RENAME`` calls in this module -- if
+        you need to drop a table, do it manually via ``psql``.
+        """
         async with self.pool.acquire() as conn:
-            await conn.execute(DDL)
+            await conn.execute(DEFAULT_SCHEMA)
+            for stmt in MIGRATIONS:
+                try:
+                    await conn.execute(stmt)
+                except Exception as exc:  # noqa: BLE001
+                    # Legacy data may prevent creating the unique index
+                    # (e.g. duplicate product_ids in old rows). Log and
+                    # continue -- the importer can still write new rows
+                    # even if the optional unique index never appears.
+                    self.logger.warning(
+                        "card_product migration skipped: %s (stmt: %s)",
+                        exc,
+                        stmt,
+                    )
 
     async def run(
         self,
         *,
-        rematch: bool = False,
         concurrency: int = 4,
         session: aiohttp.ClientSession | None = None,
     ) -> None:
@@ -336,284 +286,279 @@ class TickermintProductsImporter(ApiImporter):
                     ORDER BY card_id
                     """
                 )
-                cards = [
-                    (r["card_id"], r["card_name"], r["set_code"], r["card_number"])
-                    for r in rows
-                ]
+            cards = [dict(r) for r in rows]
 
             self.logger.info(
-                "%d card row(s) to consider (rematch=%s).", len(cards), rematch
+                "%d card(s) to resolve against TickerMint.", len(cards)
             )
             if not cards:
-                self.logger.info(
-                    "Nothing to do. Populate the card table first "
-                    "(e.g. dvs limitless --from-date ...)."
-                )
+                self.logger.info("Nothing to do. Run `dvs limitless` first.")
                 return
+
+            total = len(cards)
+            done = 0
+            in_flight = 0
+            failed = 0
+            matched = 0
+            missed = 0
+            skipped = 0
+            started_at = time.monotonic()
+            progress_lock = asyncio.Lock()
 
             sem = asyncio.Semaphore(concurrency)
 
-            async def run(card: tuple) -> None:
+            async def run_card(card: dict) -> tuple[str, int | None]:
+                nonlocal done, in_flight, failed, matched, missed, skipped
                 async with sem:
-                    await self._match_card(session, card, rematch)
+                    async with progress_lock:
+                        in_flight += 1
+                        self.logger.debug(
+                            f"starting {card['card_id']} {card['card_name']} {card['set_code']}/{card['card_number']}"
+                        )
+                    try:
+                        outcome, pid = await self._import_card(session, card)
+                    except BaseException as exc:
+                        async with progress_lock:
+                            in_flight -= 1
+                            done += 1
+                            failed += 1
+                        self.logger.error(
+                            f"{card['card_id']} {card['card_name']} {card['set_code']}/{card['card_number']} import failed: {exc}"
+                        )
+                        return ("failed", None)
 
-            await asyncio.gather(
-                *(run(c) for c in cards), return_exceptions=True
+                    async with progress_lock:
+                        in_flight -= 1
+                        done += 1
+                        if outcome == "matched":
+                            matched += 1
+                        elif outcome == "missed":
+                            missed += 1
+                        else:
+                            skipped += 1
+                        elapsed = time.monotonic() - started_at
+                        if done % 50 == 0 or done == total:
+                            self.logger.info(
+                                "progress: %d/%d done, %d in flight, "
+                                "matched=%d missed=%d skipped=%d failed=%d, "
+                                "%.0fs elapsed",
+                                done,
+                                total,
+                                in_flight,
+                                matched,
+                                missed,
+                                skipped,
+                                failed,
+                                elapsed,
+                            )
+                    return (outcome, pid)
+
+            results = await asyncio.gather(
+                *(run_card(card) for card in cards), return_exceptions=False
+            )
+
+            self.logger.info(
+                "Done. %d card(s) processed: %d matched, %d missed, "
+                "%d skipped, %d failed in %.0fs.",
+                total,
+                sum(1 for o, _ in results if o == "matched"),
+                sum(1 for o, _ in results if o == "missed"),
+                sum(1 for o, _ in results if o == "skipped"),
+                sum(1 for o, _ in results if o == "failed"),
+                time.monotonic() - started_at,
             )
         finally:
             if own_session:
                 await session.close()
 
-    async def _match_card(
+    # ------------------------------------------------------------------
+    # Per-card worker.
+    # ------------------------------------------------------------------
+
+    async def _import_card(
         self,
         session: aiohttp.ClientSession,
-        card: tuple,
-        rematch: bool,
-    ) -> None:
-        card_id, card_name, set_code, card_number = card
+        card: dict,
+    ) -> tuple[str, int | None]:
+        """Resolve one card. Returns ``(outcome, product_id)``.
 
-        log = self.logger
-        log.debug(
-            "_match_card start: card_id=%d name=%r set=%r number=%r rematch=%s",
-            card_id, card_name, set_code, card_number, rematch,
-        )
+        outcome ∈ {"matched", "missed", "skipped"}. ``product_id`` is
+        ``None`` unless outcome == "matched".
+        """
+        card_id = card["card_id"]
+        card_name = card.get("card_name") or ""
+        set_code = card.get("set_code")
+        card_set_number = card.get("card_number")
 
-        async with self.pool.acquire() as conn:
-            if not rematch:
-                existing = await conn.fetchval(
-                    "SELECT 1 FROM limitless_card_map WHERE limitless_card_id = $1",
-                    card_id,
-                )
-                if existing:
-                    log.debug(
-                        "_match_card skip: card_id=%d already mapped", card_id
-                    )
-                    return
+        # Resolve TickerMint denominator from the Limitless set code.
+        # Missing mapping -> we can't query narrowly, so skip.
+        set_number = denominator_for(set_code)
 
-            # Cascading search: full query, then drop the collector
-            # number, then keep only the name. Each step picks up where
-            # the previous one ended (deduped by product_id), so nothing
-            # is re-queried for no reason.
-            queries: list[str] = []
-            head = [card_name]
-            if set_code:
-                head.append(set_code)
-            queries.append(" ".join(head + ([card_number] if card_number else [])))
-            if card_number and set_code:
-                queries.append(f"{card_name} {set_code}")
-            elif card_number:
-                queries.append(card_name)
-            # Keep only the first occurrence of each query; the unique
-            # list is also what we iterate when issuing GETs.
-            seen: set[str] = set()
-            ordered: list[str] = []
-            for q in queries:
-                if q and q not in seen:
-                    seen.add(q)
-                    ordered.append(q)
-            log.debug(
-                "_match_card cascade plan for card_id=%d: %d query pass(es) -> %s",
-                card_id, len(ordered), ordered,
-            )
-
-            pool: dict[int, tuple[dict, str, int | None, str]] = {}
-            for query in ordered:
-                payload = await self.get_json(
-                    session,
-                    f"{API_BASE}/products/search",
-                    params={"q": query, "game": "pokemon"},
-                )
-                candidates = to_results(payload)
-                kept = 0
-                for candidate, kind, similarity in filter_candidates(
-                    candidates, card_name, card_number, logger=self.logger
-                ):
-                    pid = get_product_id(candidate)
-                    if pid is None or pid in pool:
-                        log.debug(
-                            "_match_card skip duplicate: card_id=%d "
-                            "pid=%s already in pool",
-                            card_id, pid,
-                        )
-                        continue
-                    pool[pid] = (candidate, kind, similarity, query)
-                    kept += 1
-                log.debug(
-                    "_match_card cascade pass card_id=%d q=%r -> %d raw "
-                    "candidate(s), %d new mapping(s) after filter (pool=%d)",
-                    card_id, query, len(candidates), kept, len(pool),
-                )
-                # Skip broader passes once we've locked in the precise
-                # tier -- exact_number is unambiguous (name + number),
-                # so the wider queries would just add extra API calls
-                # and fuzzy noise.
-                precise = any(
-                    payload_kind == "exact_number"
-                    for _, payload_kind, _, _ in pool.values()
-                )
-                if precise and query == ordered[0]:
-                    log.debug(
-                        "_match_card cascade stop after exact_number hit "
-                        "for card_id=%d (pool=%d)",
-                        card_id, len(pool),
-                    )
-                    break
-                # Otherwise cap the broader-pass cycle to just one more
-                # round (full -> name+set / -> name) so we don't pay a
-                # third round-trip for name-only fallbacks.
-                if query != ordered[0]:
-                    break
-
-            log.debug(
-                "_match_card pool ready: card_id=%d unique_pid(s)=%d",
-                card_id, len(pool),
-            )
-
-            async with conn.transaction():
-                # Wipe this card's mapping rows first so the table stays
-                # in lockstep with what TickerMint just returned -- stale
-                # candidates from a previous run do not linger.
-                await conn.execute(
-                    "DELETE FROM limitless_card_map WHERE limitless_card_id = $1",
-                    card_id,
-                )
-                log.debug(
-                    "_match_card wiped old mappings for card_id=%d", card_id
-                )
-                kinds: list[str] = []
-                for pid, (candidate, kind, similarity, query) in pool.items():
-                    if pid is None:
-                        log.debug(
-                            "_match_card skip persist: pid missing on "
-                            "candidate %r",
-                            candidate,
-                        )
-                        continue
-                    log.debug(
-                        "_match_card persist start: card_id=%d pid=%s "
-                        "kind=%s similarity=%s query=%r",
-                        card_id, pid, kind, similarity, query,
-                    )
-                    # Reuse the search payload when it already exposes
-                    # the fields card_product needs; avoids one
-                    # /products/{pid} GET per candidate. Falls back to
-                    # a detail fetch when critical fields are missing.
-                    if _search_payload_sufficient(candidate):
-                        detail = candidate
-                    else:
-                        detail = await self.get_json(
-                            session, f"{API_BASE}/products/{pid}"
-                        )
-                    product_id = await self._save_product(conn, detail, pid)
-                    await conn.execute(
-                        """
-                        INSERT INTO limitless_card_map (
-                            limitless_card_id, product_id,
-                            match_kind, similarity,
-                            search_query, captured_at
-                        ) VALUES ($1, $2, $3, $4, $5, now())
-                        ON CONFLICT (limitless_card_id, product_id) DO NOTHING
-                        """,
-                        card_id,
-                        product_id,
-                        kind,
-                        similarity,
-                        query,
-                    )
-                    kinds.append(kind)
-
-        if not kinds:
-            self.logger.info(
-                "%d: %s %s %s -> unmatched",
+        query = build_search_query(card_name, card_set_number, set_number)
+        if query is None:
+            self.logger.debug(
+                "card_id=%s: skipping (card_name=%r set_code=%r "
+                "card_number=%r denom=%r)",
                 card_id,
                 card_name,
-                set_code or "",
-                card_number or "",
+                set_code,
+                card_set_number,
+                set_number,
             )
-            self.logger.debug(
-                "_match_card end: card_id=%d 0 candidates after cascade "
-                "(tried %d query pass(es))",
-                card_id, len(ordered),
+            await self._upsert(
+                card_id,
+                product_id=None,
+                group_id=None,
+                card_name=None,
+                rarity=None,
+                search_query=None,
+                set_number=str(set_number) if set_number else None,
+                card_set_number=str(card_set_number)
+                if card_set_number not in (None, "")
+                else None,
             )
-            return
+            return ("skipped", None)
 
-        tally: dict[str, int] = {}
-        for kind in kinds:
-            tally[kind] = tally.get(kind, 0) + 1
-        summary = ", ".join(f"{n} {k}" for k, n in tally.items())
-        self.logger.info(
-            "%d: %s %s %s -> %d candidate(s) [%s]",
-            card_id,
-            card_name,
-            set_code or "",
-            card_number or "",
-            len(kinds),
-            summary,
-        )
-        for tier in ("fuzzy", "exact_name", "exact_number"):
-            count = tally.get(tier, 0)
-            if count:
-                self.logger.info(
-                    "%d: %d %s candidate(s) need a quick eyeball before "
-                    "trusting them -- see similarity column.",
-                    card_id, count, tier,
-                )
+        url = f"{API_BASE}/products/search"
+        params = {"q": query, "game": "pokemon"}
+
+        # DEBUG: the user explicitly asked for the concrete requested URL
+        # so we can reproduce a surprising row later.
         self.logger.debug(
-            "_match_card end: card_id=%d %d mapping(s) across %d query "
-            "pass(es); breakdown=%s",
-            card_id, len(kinds), len(ordered), tally,
+            "card_id=%s: GET %s params=%s", card_id, url, params
         )
 
-    async def _save_product(self, conn, detail: dict, fallback_product_id: int) -> int:
-        product_id = get_product_id(detail) or fallback_product_id
-        set_name, group_id = set_fields(detail)
-        card_name = str(
-            pick(detail, "name", "card_name", "product_name", "title")
-            or product_id
-        )
-        collector_number = pick(
-            detail,
-            "number",
-            "collector_number",
-            "collectorNumber",
-            "card_number",
-        )
-        rarity = pick(detail, "rarity")
-        image_url = pick(detail, "image", "image_url", "imageUrl")
-        source_url = pick(
-            detail,
-            "url",
-            "source_url",
-            "sourceUrl",
-            "page_url",
-            "pageUrl",
-        )
+        payload = await self.get_json(session, url, params=params)
+        candidates = _to_results(payload)
+        chosen = _pick_match(candidates, card_name)
 
-        await conn.execute(
-            """
-            INSERT INTO card_product (
-                product_id, card_name, set_name, collector_number,
-                rarity, image_url, source_url, group_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            ON CONFLICT (product_id) DO UPDATE
-            SET card_name = EXCLUDED.card_name,
-                set_name = EXCLUDED.set_name,
-                collector_number = EXCLUDED.collector_number,
-                rarity = EXCLUDED.rarity,
-                image_url = EXCLUDED.image_url,
-                source_url = EXCLUDED.source_url,
-                group_id = EXCLUDED.group_id
-            """,
-            product_id,
-            card_name,
-            set_name,
-            str(collector_number) if collector_number is not None else None,
-            str(rarity) if rarity is not None else None,
-            str(image_url) if image_url is not None else None,
-            str(source_url) if source_url is not None else None,
-            group_id,
+        if chosen is None:
+            self.logger.info(
+                "card_id=%s: no TickerMint match for query=%r "
+                "(%d candidate(s) from API)",
+                card_id,
+                query,
+                len(candidates),
+            )
+            await self._upsert(
+                card_id,
+                product_id=None,
+                group_id=None,
+                card_name=None,
+                rarity=None,
+                search_query=query,
+                set_number=set_number,
+                card_set_number=card_set_number,
+            )
+            return ("missed", None)
+
+        pid = _product_id(chosen)
+        if pid is None:
+            self.logger.info(
+                "card_id=%s: candidate for query=%r had no product_id; "
+                "treating as miss",
+                card_id,
+                query,
+            )
+            await self._upsert(
+                card_id,
+                product_id=None,
+                group_id=None,
+                card_name=None,
+                rarity=None,
+                search_query=query,
+                set_number=set_number,
+                card_set_number=card_set_number,
+            )
+            return ("missed", None)
+
+        group_id = _maybe_int(chosen.get("group_id"))
+        card_name_from_api = _candidate_name(chosen) or None
+        rarity = chosen.get("rarity") or None
+        if rarity is not None:
+            rarity = str(rarity)
+
+        await self._upsert(
+            card_id,
+            product_id=pid,
+            group_id=group_id,
+            card_name=card_name_from_api,
+            rarity=rarity,
+            search_query=query,
+            set_number=set_number,
+            card_set_number=card_set_number,
         )
-        return product_id
+        self.logger.debug(
+            "card_id=%s: matched -> product_id=%s query=%r",
+            card_id,
+            pid,
+            query,
+        )
+        return ("matched", pid)
+
+    async def _upsert(
+        self,
+        card_id: int,
+        *,
+        product_id: int | None,
+        group_id: int | None,
+        card_name: str | None,
+        rarity: str | None,
+        search_query: str | None,
+        set_number: str | None,
+        card_set_number: str | None,
+    ) -> None:
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO card_product (
+                    card_id, product_id, group_id, card_name, rarity,
+                    search_query, set_number, card_set_number
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                ON CONFLICT (card_id) DO UPDATE
+                SET product_id = EXCLUDED.product_id,
+                    group_id = EXCLUDED.group_id,
+                    card_name = EXCLUDED.card_name,
+                    rarity = EXCLUDED.rarity,
+                    search_query = EXCLUDED.search_query,
+                    set_number = EXCLUDED.set_number,
+                    card_set_number = EXCLUDED.card_set_number,
+                    fetched_at = now()
+                """,
+                card_id,
+                product_id,
+                group_id,
+                card_name,
+                rarity,
+                search_query,
+                set_number,
+                card_set_number,
+            )
 
 
-__all__ = ["TickermintProductsImporter"]
+def _maybe_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+__all__ = [
+    "TickermintProductsImporter",
+    "build_search_query",
+]
+
+
+# Silence "imported but unused" linters for helpers re-exported for tests.
+_ = (
+    Iterable,
+    _norm,
+    _to_results,
+    _product_id,
+    _candidate_name,
+    _pick_match,
+    _maybe_int,
+)

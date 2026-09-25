@@ -92,9 +92,8 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_prod = sub.add_parser(
         "tickermint-products",
-        help="Match Limitless cards to TickerMint products.",
+        help="Import TickerMint products for every Limitless card_name.",
     )
-    p_prod.add_argument("--rematch", action="store_true")
     _rate_args(p_prod)
     _log_level_args(p_prod)
 
@@ -147,6 +146,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=sys.stdout,
         help="Write SQL to this file instead of stdout.",
     )
+    _log_level_args(p_sql)
 
     return parser
 
@@ -183,7 +183,6 @@ async def _run_products(args: argparse.Namespace) -> None:
         headers={"User-Agent": "DVS/0.1"}
     ) as session:
         await importer.run(
-            rematch=args.rematch,
             concurrency=args.concurrency,
             session=session,
         )
