@@ -1,9 +1,11 @@
-"""PokeAPI importer (pokemon + types + abilities + moves).
+"""PokeAPI importer (pokemon + types).
 
 Per the ERM, this fills:
     pokemon (id, name, base_experience, ..., speed)
-    type / ability / move (lookup)
-    pokemon_type / pokemon_ability / pokemon_move (m:n)
+    type (lookup)
+    pokemon_type (m:n)
+
+Ability and move data are intentionally not captured.
 
 Endpoint:
     GET https://pokeapi.co/api/v2/pokemon/{id_or_name}
@@ -44,18 +46,6 @@ CREATE TABLE IF NOT EXISTS pokemon_type (
     PRIMARY KEY (pokemon_id, type_url)
 );
 CREATE INDEX IF NOT EXISTS ix_pokemon_type_type ON pokemon_type (type_url);
-
-CREATE TABLE IF NOT EXISTS pokemon_ability (
-    pokemon_id  INT NOT NULL REFERENCES pokemon(id) ON DELETE CASCADE,
-    ability_url TEXT NOT NULL REFERENCES ability(url_id) ON DELETE CASCADE,
-    PRIMARY KEY (pokemon_id, ability_url)
-);
-
-CREATE TABLE IF NOT EXISTS pokemon_move (
-    pokemon_id INT  NOT NULL REFERENCES pokemon(id) ON DELETE CASCADE,
-    move_url   TEXT NOT NULL REFERENCES move(url_id) ON DELETE CASCADE,
-    PRIMARY KEY (pokemon_id, move_url)
-);
 """
 
 
@@ -87,7 +77,8 @@ class PokeapiImporter(ApiImporter):
     api_base_url = f"{API_BASE}/pokemon/ditto"  # cheap default for test()
 
     async def setup_schema(self) -> None:
-        # type / ability / move tables live in src/dvs/schema.sql.
+        # The pokemon + type tables live in this file; the schema bootstrap
+        # in src/dvs/schema.sql stays consistent with that.
         async with self.pool.acquire() as conn:
             await conn.execute(DDL)
 
@@ -181,23 +172,13 @@ class PokeapiImporter(ApiImporter):
         async with self.pool.acquire() as conn:
             async with conn.transaction():
                 await self._upsert_type_lookup(conn, data.get("types") or [])
-                await self._upsert_ability_lookup(
-                    conn, data.get("abilities") or []
-                )
                 await self._upsert_pokemon(conn, data, stats)
                 await self._link_types(conn, data)
-                await self._link_abilities(conn, data)
-
-                # Moves can be very large (100+ per Pokemon). Fetch lazily
-                # only when the caller asked for them. We don't here -- the
-                # CLI flag for that lives outside this PR.
-                moves_saved = 0
 
         self.logger.info(
-            "%s (id=%s): saved %d move references",
+            "%s (id=%s): imported",
             data.get("name"),
             data.get("id"),
-            moves_saved,
         )
         return 1
 
@@ -267,27 +248,6 @@ class PokeapiImporter(ApiImporter):
                 name,
             )
 
-    async def _upsert_ability_lookup(
-        self,
-        conn,
-        abilities: list[dict[str, Any]],
-    ) -> None:
-        for entry in abilities:
-            ab = entry.get("ability") or {}
-            url = ab.get("url")
-            name = ab.get("name")
-            if not url or not name:
-                continue
-            await conn.execute(
-                """
-                INSERT INTO ability (url_id, name)
-                VALUES ($1, $2)
-                ON CONFLICT (url_id) DO UPDATE SET name = EXCLUDED.name
-                """,
-                url,
-                name,
-            )
-
     async def _link_types(self, conn, data: dict[str, Any]) -> None:
         for entry in data.get("types") or []:
             type_obj = entry.get("type") or {}
@@ -299,22 +259,6 @@ class PokeapiImporter(ApiImporter):
                 INSERT INTO pokemon_type (pokemon_id, type_url)
                 VALUES ($1, $2)
                 ON CONFLICT (pokemon_id, type_url) DO NOTHING
-                """,
-                _maybe_int(data.get("id")),
-                url,
-            )
-
-    async def _link_abilities(self, conn, data: dict[str, Any]) -> None:
-        for entry in data.get("abilities") or []:
-            ab = entry.get("ability") or {}
-            url = ab.get("url")
-            if not url:
-                continue
-            await conn.execute(
-                """
-                INSERT INTO pokemon_ability (pokemon_id, ability_url)
-                VALUES ($1, $2)
-                ON CONFLICT (pokemon_id, ability_url) DO NOTHING
                 """,
                 _maybe_int(data.get("id")),
                 url,
