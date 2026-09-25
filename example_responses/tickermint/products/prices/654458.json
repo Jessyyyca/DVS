@@ -1,0 +1,16 @@
+{
+  "Normal": [
+    {"date": "2024-09-01", "market_price": "0.85", "printing_id": 700100},
+    {"date": "2024-09-02", "market_price": "0.82", "printing_id": 700100},
+    {"date": "2024-09-03", "market_price": "0.84", "printing_id": 700100},
+    {"date": "2024-09-04", "market_price": "0.79", "printing_id": 700100},
+    {"date": "2024-09-05", "market_price": "0.81", "printing_id": 700100}
+  ],
+  "Holofoil": [
+    {"date": "2024-09-01", "market_price": "4.10", "printing_id": 700101},
+    {"date": "2024-09-02", "market_price": "4.05", "printing_id": 700101},
+    {"date": "2024-09-03", "market_price": "4.12", "printing_id": 700101},
+    {"date": "2024-09-04", "market_price": "4.00", "printing_id": 700101},
+    {"date": "2024-09-05", "market_price": "4.08", "printing_id": 700101}
+  ]
+}

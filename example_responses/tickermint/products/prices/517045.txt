@@ -1,0 +1,1 @@
+GET https://api.tickermint.cards/products/517045/prices

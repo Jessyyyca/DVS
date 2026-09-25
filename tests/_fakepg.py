@@ -72,6 +72,12 @@ class FakeConnection:
         unique_exists = False
         for uk_cols in t.unique_keys:
             target = tuple(values[c] for c in uk_cols)
+            # Postgres treats NULLs as distinct in unique indexes -- so a
+            # row with all-NULL key values never collides with another
+            # all-NULL row. Mirror that here so the fake can store
+            # multiple unmatched card_product rows (product_id IS NULL).
+            if any(v is None for v in target):
+                continue
             for row in t.rows.values():
                 if tuple(row[c] for c in uk_cols) == target:
                     unique_exists = True
@@ -129,6 +135,7 @@ class FakeConnection:
     async def fetch(self, query: str, *args: Any) -> list[dict[str, Any]]:
         q = " ".join(query.split())
         if q.startswith("SELECT DISTINCT m.product_id"):
+            # Legacy path used by tickermint_prices; kept for backward compat.
             t = self._tables.get("limitless_card_map")
             if not t:
                 return []
@@ -138,6 +145,11 @@ class FakeConnection:
                 if pid is not None:
                     seen.add(pid)
             return [{"product_id": pid} for pid in sorted(seen)]
+        if q.startswith("SELECT product_id FROM card_product") or q.startswith(
+            "SELECT product_id\nFROM card_product"
+        ):
+            t = self._tables["card_product"]
+            return [{"product_id": pid} for pid in sorted(t.rows.keys())]
         if q.startswith("SELECT card_id, card_name, set_code, card_number"):
             t = self._tables["card"]
             return [
@@ -241,14 +253,13 @@ def make_pool() -> FakePool:
                 primary_key=("deck_id", "card_id"),
             ),
             "card_product": _Table(
-                "card_product", primary_key=("product_id",)
-            ),
-            "limitless_card_map": _Table(
-                "limitless_card_map",
-                primary_key=("limitless_card_id", "product_id"),
+                "card_product",
+                primary_key=("card_id",),
+                unique_keys=(("product_id",),),
             ),
             "printing": _Table(
-                "printing", primary_key=("product_id", "printing_type")
+                "printing",
+                primary_key=("product_id", "printing_type"),
             ),
             "daily_price": _Table(
                 "daily_price",

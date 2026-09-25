@@ -1,45 +1,28 @@
 -- DVS schema bootstrap. Runs against $DVS_DB_DSN.
 --
--- Option A: drops printing + daily_price and recreates them in the
--- ERM-faithful shape (printing_id PK, daily_price FK on printing_id).
--- Data in printing / daily_price is lost.
+-- Purely additive: CREATE TABLE IF NOT EXISTS for every importer-owned
+-- table plus supporting CREATE UNIQUE INDEX / CREATE INDEX IF NOT EXISTS.
+-- No DROP, TRUNCATE, or RENAME -- rerunning against an existing
+-- database never destroys rows. If you need a destructive rebuild,
+-- drop the target tables by hand before applying this file.
+--
+-- Output for `dvs generate-sql`. The importers ship their own
+-- setup_schema() that creates only their own tables, so this file
+-- is mainly useful for fresh installs and CI.
 --
 -- pokemon_id is intentionally NOT linked from card_product.
 
 BEGIN;
-
--- Drop legacy / half-installed tables first so the ERM-faithful shape
--- can be installed cleanly even when a previous run left the old PK.
-DROP TABLE IF EXISTS daily_price    CASCADE;
-DROP TABLE IF EXISTS printing       CASCADE;
-DROP TABLE IF EXISTS limitless_card_map CASCADE;
-DROP TABLE IF EXISTS deck_card      CASCADE;
-DROP TABLE IF EXISTS deck           CASCADE;
-DROP TABLE IF EXISTS card           CASCADE;
-DROP TABLE IF EXISTS card_product   CASCADE;
-DROP TABLE IF EXISTS set            CASCADE;
-DROP TABLE IF EXISTS pokemon_move   CASCADE;
-DROP TABLE IF EXISTS pokemon_ability CASCADE;
-DROP TABLE IF EXISTS pokemon_type   CASCADE;
-DROP TABLE IF EXISTS pokemon        CASCADE;
-DROP TABLE IF EXISTS type           CASCADE;
-DROP TABLE IF EXISTS ability        CASCADE;
-DROP TABLE IF EXISTS move           CASCADE;
 
 CREATE TABLE IF NOT EXISTS type (
     url_id  TEXT PRIMARY KEY,
     name    TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS ability (
-    url_id  TEXT PRIMARY KEY,
-    name    TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS move (
-    url_id  TEXT PRIMARY KEY,
-    name    TEXT NOT NULL
-);
+-- ability / move / pokemon_ability / pokemon_move were dropped manually
+-- on 2026-09-25 (see /tmp/drop_ability_move.py for the one-shot SQL).
+-- Per-product ability/move metadata from PokeAPI is intentionally no
+-- longer captured by DVS.
 
 CREATE TABLE IF NOT EXISTS pokemon (
     id              INT PRIMARY KEY,
@@ -64,32 +47,8 @@ CREATE TABLE IF NOT EXISTS pokemon_type (
     PRIMARY KEY (pokemon_id, type_url)
 );
 
-CREATE TABLE IF NOT EXISTS pokemon_ability (
-    pokemon_id  INT NOT NULL REFERENCES pokemon(id) ON DELETE CASCADE,
-    ability_url TEXT NOT NULL REFERENCES ability(url_id) ON DELETE CASCADE,
-    PRIMARY KEY (pokemon_id, ability_url)
-);
-
-CREATE TABLE IF NOT EXISTS pokemon_move (
-    pokemon_id INT  NOT NULL REFERENCES pokemon(id) ON DELETE CASCADE,
-    move_url   TEXT NOT NULL REFERENCES move(url_id) ON DELETE CASCADE,
-    PRIMARY KEY (pokemon_id, move_url)
-);
-
-CREATE TABLE IF NOT EXISTS set (
-    group_id  BIGINT PRIMARY KEY,
-    set_name  TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS card_product (
-    product_id       BIGINT PRIMARY KEY,
-    group_id         BIGINT NOT NULL REFERENCES set(group_id) ON DELETE RESTRICT,
-    card_name        TEXT NOT NULL,
-    collector_number TEXT,
-    rarity           TEXT
-);
-CREATE INDEX IF NOT EXISTS ix_card_product_group ON card_product (group_id);
-
+-- Limitless card identity. Populated by `dvs limitless`. Kept so deck_card
+-- can still reference card_id.
 CREATE TABLE IF NOT EXISTS card (
     card_id      BIGSERIAL PRIMARY KEY,
     card_name    TEXT NOT NULL,
@@ -124,55 +83,60 @@ CREATE TABLE IF NOT EXISTS deck_card (
     PRIMARY KEY (deck_id, card_id)
 );
 
--- Drop legacy tables so the ERM-faithful shape can be installed.
-DROP TABLE IF EXISTS daily_price CASCADE;
-DROP TABLE IF EXISTS printing    CASCADE;
+-- TickerMint products: exactly one row per Limitless card (PK = card_id).
+-- product_id is TickerMint's id; it is NULL when the most recent search
+-- returned no candidate, which lets us record the miss in the same row
+-- that a future successful search will overwrite. The UNIQUE constraint
+-- still holds because Postgres treats NULLs as distinct in unique
+-- indexes -- so two different cards can each have a NULL product_id
+-- (both unmatched), but the same non-null product_id may only appear
+-- once across the table.
+--
+-- set_number         = TickerMint set denominator / size used in the
+--                      search query, e.g. "165" for SVI.
+-- card_set_number    = the card's position within that set, e.g. "199".
+-- search_query       = literal query string the importer used (NULL when
+--                      the run could not even build a query -- e.g.
+--                      unmapped set_code or missing card_number).
+CREATE TABLE IF NOT EXISTS card_product (
+    card_id          BIGINT PRIMARY KEY REFERENCES card(card_id) ON DELETE CASCADE,
+    product_id       BIGINT UNIQUE,
+    group_id         BIGINT,
+    card_name        TEXT,
+    rarity           TEXT,
+    search_query     TEXT,
+    set_number       TEXT,
+    card_set_number  TEXT,
+    fetched_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS ix_card_product_product ON card_product (product_id);
+CREATE INDEX IF NOT EXISTS ix_card_product_group   ON card_product (group_id);
+CREATE INDEX IF NOT EXISTS ix_card_product_name    ON card_product (lower(card_name));
 
+-- A TickerMint product has 1..N printings (Normal, Holofoil, ...).
+-- printing_id is TickerMint's internal id (nullable when the endpoint
+-- omits it); printing_type is the human-readable label.
 CREATE TABLE IF NOT EXISTS printing (
     product_id    BIGINT NOT NULL REFERENCES card_product(product_id) ON DELETE CASCADE,
-    printing_id   BIGINT NOT NULL,
+    printing_id   BIGINT,
     printing_type TEXT NOT NULL,
-    PRIMARY KEY (product_id, printing_id),
-    UNIQUE (product_id, printing_type)
+    PRIMARY KEY (product_id, printing_type),
+    UNIQUE (product_id, printing_id)
 );
+
+CREATE INDEX IF NOT EXISTS ix_printing_product ON printing (product_id);
 
 CREATE TABLE IF NOT EXISTS daily_price (
     product_id    BIGINT      NOT NULL,
-    printing_id   BIGINT      NOT NULL,
+    printing_id   BIGINT,
+    printing_type TEXT        NOT NULL,
     price_date    DATE        NOT NULL,
     market_price  NUMERIC(12,4) NOT NULL CHECK (market_price >= 0),
-    PRIMARY KEY (product_id, printing_id, price_date),
-    FOREIGN KEY (product_id, printing_id)
-        REFERENCES printing(product_id, printing_id) ON DELETE CASCADE
+    PRIMARY KEY (product_id, printing_type, price_date),
+    FOREIGN KEY (product_id, printing_type)
+        REFERENCES printing(product_id, printing_type) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS ix_daily_price_date    ON daily_price (price_date);
 CREATE INDEX IF NOT EXISTS ix_daily_price_product ON daily_price (product_id);
-
--- 1:N: one Limitless card identity can map to many TickerMint products
--- (all candidates the search returned). match_kind records whether the
--- collector number also matched (exact_number) or only the name matched
--- (exact_name), so reviewers can triage without re-querying the API.
--- The matcher wipes existing rows for a card_id before re-inserting so
--- the table stays in lockstep with what TickerMint returned on the most
--- recent run.
-CREATE TABLE IF NOT EXISTS limitless_card_map (
-    limitless_card_id BIGINT NOT NULL REFERENCES card(card_id) ON DELETE CASCADE,
-    product_id        BIGINT NOT NULL REFERENCES card_product(product_id) ON DELETE CASCADE,
-    match_kind        TEXT NOT NULL CHECK (
-        match_kind IN ('exact_number', 'exact_name', 'fuzzy')
-    ),
-    -- 0..100 similarity score from rapidfuzz for fuzzy rows; NULL for
-    -- the exact tiers so existing rows stay valid on schema migration.
-    similarity        INT CHECK (
-        similarity IS NULL OR (similarity BETWEEN 0 AND 100)
-    ),
-    search_query      TEXT NOT NULL,
-    captured_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (limitless_card_id, product_id)
-);
-CREATE INDEX IF NOT EXISTS ix_limitless_card_map_product
-    ON limitless_card_map (product_id);
-CREATE INDEX IF NOT EXISTS ix_limitless_card_map_similarity
-    ON limitless_card_map (similarity);
 
 COMMIT;

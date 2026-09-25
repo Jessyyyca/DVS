@@ -1,0 +1,1 @@
+GET https://play.limitlesstcg.com/api/tournaments?game=PTCG&format=STANDARD&limit=5&page=1

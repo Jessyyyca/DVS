@@ -148,9 +148,9 @@ class TickermintPricesImporter(ApiImporter):
             async with self.pool.acquire() as conn:
                 rows = await conn.fetch(
                     """
-                    SELECT DISTINCT m.product_id
-                    FROM limitless_card_map m
-                    ORDER BY m.product_id
+                    SELECT product_id
+                    FROM card_product
+                    ORDER BY product_id
                     """
                 )
                 product_ids = [r["product_id"] for r in rows]

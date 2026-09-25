@@ -1,0 +1,1 @@
+GET https://play.limitlesstcg.com/api/tournaments/6ab0812de905c1db687469ae/standings
