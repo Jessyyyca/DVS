@@ -1,8 +1,9 @@
 # DVS
 
 Fragestellungen:
-1. Vergleich der Preise von Pokemonkarten mit Typ, Basestats, Generation, etc. um die Frage zu klären: Welche Pokemon(-Karten) welcher Generationen (/Typen /mit welchen Basestats /etc.) erziehlen hohe Preise?
+1. Vergleich der Preise von Pokemonkarten mit Typ und Basestats aus Pokemonspielen
 2. Vergleich der Karten-Preise mit Verwendung in Turnieren.
+3. Vergleich der Verwendung in Turnieren mit Typ und Basestats aus Pokemonspielen
 
 Quellsysteme:
 Daten zu Pokemon: PokeAPI - https://pokeapi.co/
