@@ -1,0 +1,9 @@
+{
+  "Normal": [
+    {"date": "2024-09-01", "market_price": "0.74", "printing_id": 720100},
+    {"date": "2024-09-02", "market_price": "0.72", "printing_id": 720100},
+    {"date": "2024-09-03", "market_price": "0.75", "printing_id": 720100},
+    {"date": "2024-09-04", "market_price": "0.71", "printing_id": 720100},
+    {"date": "2024-09-05", "market_price": "0.73", "printing_id": 720100}
+  ]
+}

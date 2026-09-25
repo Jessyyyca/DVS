@@ -1,0 +1,1 @@
+GET https://api.tickermint.cards/products/search?q=Charizard%20ex%20199%2F165%20165&game=pokemon

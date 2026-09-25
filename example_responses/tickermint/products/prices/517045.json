@@ -1,0 +1,9 @@
+{
+  "Holofoil": [
+    {"date": "2024-09-01", "market_price": "356.95", "printing_id": 750100},
+    {"date": "2024-09-02", "market_price": "350.10", "printing_id": 750100},
+    {"date": "2024-09-03", "market_price": "362.00", "printing_id": 750100},
+    {"date": "2024-09-04", "market_price": "358.50", "printing_id": 750100},
+    {"date": "2024-09-05", "market_price": "360.00", "printing_id": 750100}
+  ]
+}
