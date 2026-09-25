@@ -1,0 +1,72 @@
+erDiagram
+	direction TB
+	DIM_DATE {
+		int date_id PK ""  
+		date full_date  ""  
+		int day  ""  
+		int month  ""  
+		int quarter  ""  
+		int year  ""  
+	}
+
+	DIM_POKEMON {
+		int pokemon_id PK ""  
+		string pokemon_name  ""  
+		int hp  ""  
+		int attack  ""  
+		int defense  ""  
+		int special_attack  ""  
+		int special_defense  ""  
+		int speed  ""  
+        string type_one ""
+        string type_two  ""
+	}
+
+	DIM_CARD {
+		int card_id PK ""  
+		string card_name  ""  
+		string set_name ""    
+		string rarity  "" 
+	}
+
+	CORE_DECK_RESULT {
+		string deck_id PK ""  
+		int date_id FK ""  
+		int wins  ""  
+		int losses  ""  
+		int ties  ""  
+	}
+
+	CORE_CARD_PRICE {
+		int card_id PK,FK ""  
+		string printing_type PK ""  
+		int date_id PK,FK ""  
+		decimal market_price  ""  
+	}
+
+	TOPIC_BASE_STATS_VS_COMPETITIVE {
+		string deck_id PK,FK ""  
+		int pokemon_id PK,FK ""  
+		int pokemon_copy_count  ""  
+	}
+
+	TOPIC_CARD_COMPETITIVE {
+		string deck_id PK,FK ""  
+		int card_id PK,FK ""  
+		int card_copy_count  ""  
+	}
+
+	TOPIC_POKEMON_PRICE {
+		int pokemon_id PK,FK ""  
+		int card_id PK,FK ""  
+	}
+
+	DIM_DATE||--o{CORE_DECK_RESULT:"played_on"
+	CORE_DECK_RESULT||--o{TOPIC_BASE_STATS_VS_COMPETITIVE:"contains"
+	DIM_POKEMON||--o{TOPIC_BASE_STATS_VS_COMPETITIVE:"used_pokemon"
+	CORE_DECK_RESULT||--o{TOPIC_CARD_COMPETITIVE:"contains"
+	DIM_CARD||--o{TOPIC_CARD_COMPETITIVE:"used_card"
+	DIM_CARD||--o{CORE_CARD_PRICE:"priced"
+	DIM_DATE||--o{CORE_CARD_PRICE:"observed_on"
+	DIM_POKEMON||--o{TOPIC_POKEMON_PRICE:"pokemon"
+	DIM_CARD||--o{TOPIC_POKEMON_PRICE:"pokemon_card"
