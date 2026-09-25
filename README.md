@@ -2,7 +2,7 @@
 
 Fragestellungen:
 1. Vergleich der Preise von Pokemonkarten mit Typ und Basestats aus Pokemonspielen
-2. Vergleich der Karten-Preise mit Verwendung in Turnieren.
+2. Vergleich der Preise von Pokemonkarten mit Verwendung in Turnieren.
 3. Vergleich der Verwendung in Turnieren mit Typ und Basestats aus Pokemonspielen
 
 Quellsysteme:
