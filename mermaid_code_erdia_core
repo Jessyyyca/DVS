@@ -1,3 +1,7 @@
+---
+config:
+  layout:
+---
 erDiagram
 	direction TB
 	DIM_DATE {
@@ -18,15 +22,14 @@ erDiagram
 		int special_attack  ""  
 		int special_defense  ""  
 		int speed  ""  
-        string type_one ""
-        string type_two  ""
+		string type_one  ""  
+		string type_two  ""  
 	}
 
 	DIM_CARD {
 		int card_id PK ""  
-		string card_name  ""  
-		string set_name ""    
-		string rarity  "" 
+		string card_name  ""   
+		string rarity  ""  
 	}
 
 	CORE_DECK_RESULT {
