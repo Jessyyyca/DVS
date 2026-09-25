@@ -14,7 +14,6 @@ import pytest
 
 from dvs.api.base import RateLimit
 from dvs.api.limitless import LimitlessImporter
-from dvs.api.tickermint_products import TickermintProductsImporter
 
 from ._fakepg import UniqueViolationError, make_pool
 
@@ -160,162 +159,188 @@ async def test_daily_price_upsert_is_idempotent() -> None:
 
 
 @pytest.mark.asyncio
-async def test_limitless_card_map_wipe_and_replace_is_idempotent() -> None:
-    """Re-running a match for a card must replace stale candidates cleanly.
-
-    The 1:N map wipes existing rows for limitless_card_id before
-    re-inserting, so shrinking/changing candidates leaves no residue.
-    No candidate should also leave the table empty for that card.
-    """
-    pool = make_pool()
-    imp = TickermintProductsImporter(pool, rate_limit=_rate_limit())
-    async with pool.acquire() as conn:
-        # Manually wire a card and three mapping rows for it.
-        await conn.execute(
-            "INSERT INTO card (card_id, card_name, set_code, card_number) "
-            "VALUES ($1, $2, $3, $4)",
-            1, "Wiglett", "TEF", "47",
-        )
-        await conn.execute(
-            "INSERT INTO card_product (product_id, card_name) "
-            "VALUES ($1, $2)",
-            100, "Wiglett",
-        )
-        await conn.execute(
-            "INSERT INTO card_product (product_id, card_name) "
-            "VALUES ($1, $2)",
-            101, "Wiglett",
-        )
-        await conn.execute(
-            "INSERT INTO card_product (product_id, card_name) "
-            "VALUES ($1, $2)",
-            102, "Wiglett",
-        )
-
-        # First run: keep all three mappings (idempotent insert path).
-        for pid in (100, 101, 102):
-            await conn.execute(
-                "INSERT INTO limitless_card_map "
-                "(limitless_card_id, product_id, match_kind, search_query) "
-                "VALUES ($1, $2, $3, $4) "
-                "ON CONFLICT (limitless_card_id, product_id) DO NOTHING",
-                1, pid, "exact_number", "Wiglett TEF 47",
-            )
-        assert len(pool._tables["limitless_card_map"].rows) == 3
-
-        # Wipe-and-replace with a smaller set. Replaces 100 + 101 with 100
-        # only -- 102 must disappear, no duplicate 100 must remain.
-        await conn.execute(
-            "DELETE FROM limitless_card_map WHERE limitless_card_id = $1",
-            1,
-        )
-        await conn.execute(
-            "INSERT INTO limitless_card_map "
-            "(limitless_card_id, product_id, match_kind, search_query) "
-            "VALUES ($1, $2, $3, $4) "
-            "ON CONFLICT (limitless_card_id, product_id) DO NOTHING",
-            1, 100, "exact_number", "Wiglett TEF 47",
-        )
-
-    rows = pool._tables["limitless_card_map"].rows
-    assert len(rows) == 1
-    only = next(iter(rows.values()))
-    assert only["product_id"] == 100
-    assert only["limitless_card_id"] == 1
-
-
-@pytest.mark.asyncio
-async def test_limitless_card_map_replace_with_no_candidates() -> None:
-    """A search that returns nothing must still clean up prior rows."""
-    pool = make_pool()
-    imp = TickermintProductsImporter(pool, rate_limit=_rate_limit())
-    async with pool.acquire() as conn:
-        await conn.execute(
-            "INSERT INTO card (card_id, card_name, set_code, card_number) "
-            "VALUES ($1, $2, $3, $4)",
-            2, "Mewtwo", "base1", "10",
-        )
-        await conn.execute(
-            "INSERT INTO card_product (product_id, card_name) "
-            "VALUES ($1, $2)",
-            200, "Mewtwo",
-        )
-        await conn.execute(
-            "INSERT INTO limitless_card_map "
-            "(limitless_card_id, product_id, match_kind, search_query) "
-            "VALUES ($1, $2, $3, $4)",
-            2, 200, "exact_number", "Mewtwo base1 10",
-        )
-        assert len(pool._tables["limitless_card_map"].rows) == 1
-
-        # Match returns nothing -> wipe, insert nothing.
-        await conn.execute(
-            "DELETE FROM limitless_card_map WHERE limitless_card_id = $1",
-            2,
-        )
-
-    assert pool._tables["limitless_card_map"].rows == {}
-
-
-@pytest.mark.asyncio
-async def test_limitless_card_map_fuzzy_row_persists_similarity() -> None:
-    """Fuzzy-tier rows must persist the rapidfuzz score alongside the FK."""
-    pool = make_pool()
-    async with pool.acquire() as conn:
-        await conn.execute(
-            "INSERT INTO card (card_id, card_name, set_code, card_number) "
-            "VALUES ($1, $2, $3, $4)",
-            9, "Marill", "ASC", "83",
-        )
-        await conn.execute(
-            "INSERT INTO card_product (product_id, card_name) "
-            "VALUES ($1, $2)",
-            300, "Marill - 083/217 (Friend Ball)",
-        )
-        await conn.execute(
-            "INSERT INTO limitless_card_map "
-            "(limitless_card_id, product_id, match_kind, similarity, "
-            "search_query) "
-            "VALUES ($1, $2, $3, $4, $5) "
-            "ON CONFLICT (limitless_card_id, product_id) DO NOTHING",
-            9, 300, "fuzzy", 92, "Marill ASC 83",
-        )
-
-    rows = pool._tables["limitless_card_map"].rows
-    assert len(rows) == 1
-    only = next(iter(rows.values()))
-    assert only["match_kind"] == "fuzzy"
-    assert only["similarity"] == 92
-
-
-@pytest.mark.asyncio
 async def test_card_product_upsert_merges() -> None:
+    """Saving the same card twice must update fields, not duplicate rows."""
     pool = make_pool()
-    imp = TickermintProductsImporter(pool, rate_limit=_rate_limit())
     async with pool.acquire() as conn:
-        await imp._save_product(
-            conn,
-            {
-                "card_name": "Pikachu",
-                "set": "Base",
-                "number": "58",
-                "rarity": "Common",
-            },
-            7777,
+        await conn.execute(
+            "INSERT INTO card_product "
+            "(card_id, product_id, group_id, card_name, rarity, search_query, "
+            "set_number, card_set_number) "
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) "
+            "ON CONFLICT (card_id) DO UPDATE SET "
+            "product_id = EXCLUDED.product_id, "
+            "group_id = EXCLUDED.group_id, "
+            "card_name = EXCLUDED.card_name, "
+            "rarity = EXCLUDED.rarity, "
+            "search_query = EXCLUDED.search_query, "
+            "set_number = EXCLUDED.set_number, "
+            "card_set_number = EXCLUDED.card_set_number",
+            1, 7777, 100, "Pikachu", "Common", "Pikachu 58/165", "165", "58",
         )
-        await imp._save_product(
-            conn,
-            {
-                "card_name": "Pikachu",
-                "set": "Base",
-                "number": "58",
-                "rarity": "Common",
-                "image_url": "https://x/y.png",
-            },
-            7777,
+        await conn.execute(
+            "INSERT INTO card_product "
+            "(card_id, product_id, group_id, card_name, rarity, search_query, "
+            "set_number, card_set_number) "
+            "VALUES ($1, $2, $3, $4, $5, $6, $7, $8) "
+            "ON CONFLICT (card_id) DO UPDATE SET "
+            "product_id = EXCLUDED.product_id, "
+            "group_id = EXCLUDED.group_id, "
+            "card_name = EXCLUDED.card_name, "
+            "rarity = EXCLUDED.rarity, "
+            "search_query = EXCLUDED.search_query, "
+            "set_number = EXCLUDED.set_number, "
+            "card_set_number = EXCLUDED.card_set_number",
+            1, 7777, 100, "Pikachu", "Rare", "Pikachu 58/165", "165", "58",
         )
     row = next(iter(pool._tables["card_product"].rows.values()))
-    assert row["image_url"] == "https://x/y.png"
+    assert row["rarity"] == "Rare"
+    assert len(pool._tables["card_product"].rows) == 1
+
+
+@pytest.mark.asyncio
+async def test_card_product_one_per_card_id() -> None:
+    """One card_id maps to at most one card_product row, regardless of how
+    many products come back from a search (latest upsert wins)."""
+    pool = make_pool()
+    async with pool.acquire() as conn:
+        for card_id, pid in ((10, 100), (10, 101), (10, 102)):
+            await conn.execute(
+                "INSERT INTO card_product "
+                "(card_id, product_id, card_name, search_query, "
+                "set_number, card_set_number) "
+                "VALUES ($1, $2, $3, $4, $5, $6) "
+                "ON CONFLICT (card_id) DO UPDATE SET "
+                "product_id = EXCLUDED.product_id",
+                card_id, pid, "Wiglett", "Wiglett 47/162", "162", "47",
+            )
+    rows = pool._tables["card_product"].rows
+    assert {key[0] for key in rows} == {10}
+    assert next(iter(rows.values()))["product_id"] == 102
+
+
+@pytest.mark.asyncio
+async def test_card_product_unmatched_insert_is_null() -> None:
+    """A miss must persist a row with product_id IS NULL so the attempt is
+    visible to later runs -- and rerunning still upserts in place."""
+    pool = make_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO card_product "
+            "(card_id, product_id, search_query, set_number, card_set_number) "
+            "VALUES ($1, $2, $3, $4, $5) "
+            "ON CONFLICT (card_id) DO UPDATE SET "
+            "product_id = EXCLUDED.product_id, "
+            "search_query = EXCLUDED.search_query",
+            42, None, "Pikachu 200/69", "69", "200",
+        )
+        # Second pass still matches the same row -- product_id is still NULL.
+        await conn.execute(
+            "INSERT INTO card_product "
+            "(card_id, product_id, search_query, set_number, card_set_number) "
+            "VALUES ($1, $2, $3, $4, $5) "
+            "ON CONFLICT (card_id) DO UPDATE SET "
+            "product_id = EXCLUDED.product_id, "
+            "search_query = EXCLUDED.search_query",
+            42, None, "Pikachu 200/69", "69", "200",
+        )
+    rows = pool._tables["card_product"].rows
+    assert len(rows) == 1
+    row = next(iter(rows.values()))
+    assert row["product_id"] is None
+    assert row["search_query"] == "Pikachu 200/69"
+
+
+@pytest.mark.asyncio
+async def test_card_product_null_product_id_allows_multiple_unmatched_cards() -> None:
+    """Postgres UNIQUE treats NULLs as distinct, so two different card_ids
+    may both have a NULL product_id without colliding."""
+    pool = make_pool()
+    async with pool.acquire() as conn:
+        for card_id in (1, 2, 3):
+            await conn.execute(
+                "INSERT INTO card_product "
+                "(card_id, product_id, search_query, "
+                "set_number, card_set_number) "
+                "VALUES ($1, $2, $3, $4, $5) "
+                "ON CONFLICT (card_id) DO NOTHING",
+                card_id, None, f"Card {card_id} 1/2", "2", "1",
+            )
+    assert len(pool._tables["card_product"].rows) == 3
+    assert all(
+        row["product_id"] is None
+        for row in pool._tables["card_product"].rows.values()
+    )
+
+
+@pytest.mark.asyncio
+async def test_card_product_two_cards_same_product_id_violates_unique() -> None:
+    """Two different card_ids mapping to the same product_id IS a real
+    conflict -- we cannot have two cards claim the same product."""
+    pool = make_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO card_product "
+            "(card_id, product_id, search_query, "
+            "set_number, card_set_number) "
+            "VALUES ($1, $2, $3, $4, $5)",
+            1, 999, "Pikachu 1/2", "2", "1",
+        )
+        with pytest.raises(UniqueViolationError):
+            await conn.execute(
+                "INSERT INTO card_product "
+                "(card_id, product_id, search_query, "
+                "set_number, card_set_number) "
+                "VALUES ($1, $2, $3, $4, $5)",
+                2, 999, "Pikachu 1/2", "2", "1",
+            )
+
+
+@pytest.mark.asyncio
+async def test_printing_upsert_updates_printing_id() -> None:
+    """Re-importing a product with the same printing_type must update printing_id."""
+    pool = make_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO card_product "
+            "(card_id, product_id, card_name, search_query) "
+            "VALUES ($1, $2, $3, $4)",
+            1, 1, "Pikachu", "Pikachu",
+        )
+        for printing_id in (10, 11):
+            await conn.execute(
+                "INSERT INTO printing "
+                "(product_id, printing_id, printing_type) "
+                "VALUES ($1, $2, $3) "
+                "ON CONFLICT (product_id, printing_type) DO UPDATE "
+                "SET printing_id = EXCLUDED.printing_id",
+                1, printing_id, "Normal",
+            )
+    row = next(iter(pool._tables["printing"].rows.values()))
+    assert row["printing_id"] == 11
+    assert len(pool._tables["printing"].rows) == 1
+
+
+@pytest.mark.asyncio
+async def test_printing_distinct_printing_types_kept_separate() -> None:
+    """Same product, two different printing_types -> two printing rows."""
+    pool = make_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "INSERT INTO card_product "
+            "(card_id, product_id, card_name, search_query) "
+            "VALUES ($1, $2, $3, $4)",
+            1, 1, "Pikachu", "Pikachu",
+        )
+        for ptype, pid in (("Normal", 10), ("Holofoil", 11)):
+            await conn.execute(
+                "INSERT INTO printing "
+                "(product_id, printing_id, printing_type) "
+                "VALUES ($1, $2, $3) "
+                "ON CONFLICT (product_id, printing_type) DO NOTHING",
+                1, pid, ptype,
+            )
+    assert len(pool._tables["printing"].rows) == 2
 
 
 @pytest.mark.asyncio

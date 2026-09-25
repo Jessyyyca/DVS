@@ -1,16 +1,15 @@
-"""Pure tests for the TickerMint candidate filter."""
+"""Pure tests for the TickermintProductsImporter helpers (no DB, no network)."""
 
 from __future__ import annotations
 
+import pytest
+
 from dvs.api.tickermint_products import (
-    FUZZY_THRESHOLD,
-    candidate_name,
-    candidate_number,
-    filter_candidates,
-    get_product_id,
-    pick,
-    set_fields,
-    to_results,
+    _norm,
+    _pick_match,
+    _product_id,
+    _to_results,
+    build_search_query,
 )
 
 
@@ -18,123 +17,120 @@ def _c(**kw):
     return kw
 
 
-def test_pick_returns_first_present_key() -> None:
-    assert pick(_c(productId=42, id=99), "product_id", "productId", "id") == 42
-    assert pick(_c(id=99), "product_id", "productId", "id") == 99
-    assert pick(_c(), "product_id", "productId") is None
+# ---------------------------------------------------------------------------
+# _norm.
+# ---------------------------------------------------------------------------
 
 
-def test_get_product_id_handles_strings() -> None:
-    assert get_product_id(_c(product_id="42")) == 42
-    assert get_product_id(_c(productId="abc")) is None
+def test_norm_lowercases_and_strips_punctuation() -> None:
+    assert _norm("Pikachu VMAX") == "pikachuvmax"
+    assert _norm("Charizard-ex 199/165") == "charizardex199165"
+    assert _norm(None) == ""
+    assert _norm("") == ""
 
 
-def test_candidate_name_and_number() -> None:
-    assert candidate_name(_c(card_name="Pikachu")) == "Pikachu"
-    assert candidate_number(_c(collector_number="58/102")) == "58/102"
+# ---------------------------------------------------------------------------
+# _to_results / _product_id.
+# ---------------------------------------------------------------------------
 
 
-def test_to_results_handles_envelopes() -> None:
-    assert len(to_results({"results": [_c(id=1), _c(id=2)]})) == 2
-    assert len(to_results([_c(id=1)])) == 1
-    assert to_results({"not": "a list"}) == []
-    # Single product envelope.
-    assert to_results({"product_id": 1, "name": "X"}) == [
-        {"product_id": 1, "name": "X"}
-    ]
+def test_to_results_handles_list_envelope() -> None:
+    payload = [_c(product_id=1, name="A"), _c(product_id=2, name="B")]
+    assert len(_to_results(payload)) == 2
 
 
-def test_set_fields_handles_dict_and_scalar() -> None:
-    name, gid = set_fields(
-        {"name": "X", "set": {"name": "Base", "group_id": 7}}
-    )
-    assert name == "Base"
-    assert gid == 7
-
-    name, gid = set_fields({"name": "Y", "group_id": "9"})
-    assert name is None
-    assert gid == 9
-
-    name, gid = set_fields({"name": "Z"})
-    assert name is None and gid is None
+def test_to_results_handles_results_key_envelope() -> None:
+    payload = {"results": [_c(product_id=1)]}
+    assert _to_results(payload) == [_c(product_id=1)]
 
 
-def test_filter_candidates_unmatched_when_empty() -> None:
-    assert filter_candidates([], "Pikachu", "58") == []
+def test_to_results_handles_single_object_envelope() -> None:
+    payload = {"product_id": 42, "name": "Pikachu"}
+    assert _to_results(payload) == [{"product_id": 42, "name": "Pikachu"}]
 
 
-def test_filter_candidates_keeps_only_name_matches() -> None:
-    """Candidates with a different name are dropped, even with the right number."""
-    c1 = _c(name="Pikachu", number="58")
-    c2 = _c(name="Raichu", number="58")
-    out = filter_candidates([c1, c2], "Pikachu", "58")
-    assert out == [(c1, "exact_number", None)]
+def test_to_results_returns_empty_for_unknown_shape() -> None:
+    assert _to_results({"not": "a list"}) == []
+    assert _to_results("a string") == []
 
 
-def test_filter_candidates_tags_exact_number_above_exact_name() -> None:
-    """When at least one candidate lines up on number, only those are kept."""
-    c1 = _c(name="Pikachu", number="58")
-    c2 = _c(name="Pikachu", number="99")
-    out = filter_candidates([c1, c2], "Pikachu", "58")
-    assert out == [(c1, "exact_number", None)]
+def test_product_id_handles_strings() -> None:
+    assert _product_id(_c(product_id="42")) == 42
+    assert _product_id(_c(id="99")) == 99
+    assert _product_id(_c(product_id="abc")) is None
+    assert _product_id(_c()) is None
 
 
-def test_filter_candidates_normalizes_leading_zeros_in_number() -> None:
-    """'83' from Limitless must match '083/217' from TickerMint."""
-    c1 = _c(name="Marill", number="083/217")
-    out = filter_candidates([c1], "Marill", "83")
-    assert out == [(c1, "exact_number", None)]
+# ---------------------------------------------------------------------------
+# _pick_match: single-tier conservative name match.
+# ---------------------------------------------------------------------------
 
 
-def test_filter_candidates_falls_back_to_exact_name() -> None:
-    """No number match -> all name-match candidates kept as exact_name."""
-    c1 = _c(name="Pikachu", number="")
-    c2 = _c(name="Pikachu", number="3")
-    out = filter_candidates([c1, c2], "Pikachu", None)
-    kinds = [kind for _, kind, _ in out]
-    assert kinds == ["exact_name", "exact_name"]
-    assert {c["name"] for c, _, _ in out} == {"Pikachu"}
+def test_pick_match_returns_first_when_name_matches() -> None:
+    c1 = _c(name="Pikachu", product_id=1)
+    c2 = _c(name="Pikachu - SVI 58", product_id=2)
+    assert _pick_match([c1, c2], "Pikachu") == c1
 
 
-def test_filter_candidates_returns_many_when_ambiguous() -> None:
-    """1:N: the whole pile survives, never collapses to a single row."""
-    c1 = _c(name="Wiglett", number="47")
-    c2 = _c(name="Wiglett", number="47")
-    c3 = _c(name="Wiglett", number="47")
-    out = filter_candidates([c1, c2, c3], "Wiglett", "47")
-    assert len(out) == 3
-    assert all(kind == "exact_number" for _, kind, _ in out)
+def test_pick_match_keeps_first_with_embedded_card_number() -> None:
+    """TickerMint embeds the card number in candidate names; the first
+    prefix-matching candidate wins (no fallback to name-only)."""
+    c1 = _c(name="Fezandipiti ex - 288/217", product_id=1)
+    c2 = _c(name="Fezandipiti ex - 092/064", product_id=2)
+    assert _pick_match([c1, c2], "Fezandipiti ex") == c1
 
 
-def test_filter_candidates_fuzzy_falls_back_when_no_exact_match() -> None:
-    """Without an exact-name hit, leading-prefix scoring kicks in below FUZZY_THRESHOLD."""
-    # Replicates the real TickerMint shape: "Marill - 083/217 (Friend Ball)".
-    c1 = _c(name="Marill - 083/217 (Friend Ball)", number="083/217")
-    out = filter_candidates([c1], "Marill", "83")
-    assert len(out) == 1
-    cand, kind, similarity = out[0]
-    assert cand is c1
-    assert kind == "fuzzy"
-    assert similarity is not None
-    assert similarity >= FUZZY_THRESHOLD
+def test_pick_match_rejects_unrelated_names() -> None:
+    c1 = _c(name="Pikachu - 58", product_id=1)
+    c2 = _c(name="Completely Unrelated", product_id=2)
+    assert _pick_match([c1, c2], "Pikachu") == c1
 
 
-def test_filter_candidates_fuzzy_ranks_higher_score_first() -> None:
-    """Higher leading-prefix coverage comes first; ties broken by product_id."""
-    c_perfect = _c(name="Marill", number="083/217", product_id=10)
-    c_close = _c(name="Marill - 083/217 (Friend Ball)", number="083/217", product_id=11)
-    c_loose = _c(
-        name="MarillFriend - 083/217 (Promo)", number="083/217", product_id=12
-    )
-    out = filter_candidates(
-        [c_loose, c_close, c_perfect], "Marill", "083/217"
-    )
-    # All three pass the threshold; best score first.
-    scores = [s for _, _, s in out]
-    assert scores == sorted(scores, reverse=True)
+def test_pick_match_returns_none_when_nothing_matches() -> None:
+    c1 = _c(name="Completely Unrelated", product_id=1)
+    assert _pick_match([c1], "Marill") is None
 
 
-def test_filter_candidates_drops_truly_unrelated_names() -> None:
-    c1 = _c(name="Completely Unrelated Name", number="99")
-    out = filter_candidates([c1], "Marill", "83")
-    assert out == []
+def test_pick_match_returns_none_for_blank_query() -> None:
+    c1 = _c(name="Pikachu", product_id=1)
+    assert _pick_match([c1], "") is None
+    assert _pick_match([c1], None) is None  # type: ignore[arg-type]
+
+
+def test_pick_match_returns_none_for_empty_candidate_list() -> None:
+    assert _pick_match([], "Pikachu") is None
+
+
+def test_pick_match_normalizes_case_and_punctuation() -> None:
+    c1 = _c(name="Charizard ex - 199/165", product_id=1)
+    assert _pick_match([c1], "Charizard EX 199/165") == c1
+
+
+# ---------------------------------------------------------------------------
+# build_search_query: "{card_name} {card_set_number}/{set_number}".
+# ---------------------------------------------------------------------------
+
+
+def test_build_search_query_full_template() -> None:
+    assert build_search_query("Pikachu ex", "200", "69") == "Pikachu ex 200/69"
+
+
+def test_build_search_query_simple() -> None:
+    assert build_search_query("Pikachu", "58", "165") == "Pikachu 58/165"
+
+
+@pytest.mark.parametrize(
+    "name, num, denom",
+    [
+        ("Pikachu", None, "165"),
+        ("Pikachu", "58", None),
+        ("Pikachu", "", "165"),
+        ("Pikachu", "58", ""),
+        ("", "58", "165"),
+    ],
+)
+def test_build_search_query_returns_none_on_missing_pieces(
+    name: str, num: str | None, denom: str | None
+) -> None:
+    """Any missing piece -> None. The caller will log + insert NULL row."""
+    assert build_search_query(name, num, denom) is None

@@ -31,7 +31,18 @@ def test_generate_sql_with_out_file(tmp_path) -> None:
     assert target.exists()
     body = target.read_text(encoding="utf-8")
     assert "CREATE TABLE" in body
-    assert "DROP TABLE IF EXISTS daily_price" in body
+    # schema.sql is now purely additive: no statement may begin with
+    # DROP, TRUNCATE, ALTER TABLE ... RENAME, or DELETE FROM. We scan
+    # only the non-comment portion (everything after `--`) of each
+    # line so prose warnings ("no DROP TRUNCATE OR RENAME") in the
+    # file header don't trip the assertion.
+    destructive_prefixes = ("DROP ", "TRUNCATE ", "ALTER TABLE ", "DELETE FROM ")
+    for line in body.splitlines():
+        code = line.split("--", 1)[0].strip().upper()
+        for prefix in destructive_prefixes:
+            assert not code.startswith(prefix), (
+                f"schema.sql must be non-destructive, got: {line!r}"
+            )
 
 
 def test_generate_sql_does_not_touch_db(monkeypatch) -> None:
