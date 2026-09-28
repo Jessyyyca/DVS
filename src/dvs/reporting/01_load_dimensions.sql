@@ -5,14 +5,21 @@
 BEGIN;
 
 INSERT INTO reporting.dim_date_reporting (
-    date_id, full_date, day, month, quarter, year
+    date_id, full_date, weekday, monthday, month, quarter, year
 )
 SELECT
-    date_id, full_date, day, month, quarter, year
+    date_id,
+    full_date,
+    extract(isodow FROM full_date)::smallint AS weekday,
+    extract(day FROM full_date)::smallint AS monthday,
+    month,
+    quarter,
+    year
 FROM core.dim_date
 ON CONFLICT (date_id) DO UPDATE
 SET full_date = EXCLUDED.full_date,
-    day       = EXCLUDED.day,
+    weekday   = EXCLUDED.weekday,
+    monthday  = EXCLUDED.monthday,
     month     = EXCLUDED.month,
     quarter   = EXCLUDED.quarter,
     year      = EXCLUDED.year;
