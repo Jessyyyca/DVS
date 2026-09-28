@@ -18,19 +18,19 @@ ties
 
 Bedeutung der Fakten:
 
-- total_decks:
+- `total_decks`:
   Anzahl aller beobachteten Decks zum gegebenen Datum: COUNT(DISTINCT CORE_DECK_RESULT.deck_id)
-- decks_using_pokemon:
+- `decks_using_pokemon`:
   Anzahl aller Decks, die mindestens eine Karte beinhalten die zu einem Pokemon gemapped wurde: COUNT(DISTINCT TOPIC_BASE_STATS_VS_COMPETITIVE.deck_id)
 - `pokemon_copy_count`:
   Anzahl von Kartenkopien, die zu einem Pokemon gehören: SUM(pokemon_copy_count)
-- wins, losses, ties:
+- `wins`, `losses`, `ties`:
   SUM(CORE_DECK_RESULT.wins)
   SUM(CORE_DECK_RESULT.losses)
   SUM(CORE_DECK_RESULT.ties)
-- usage_rate:
+- `usage_rate`:
   usage_rate = decks_using_pokemon / total_decks
-- win_rate:
+- `win_rate`:
   win_rate = wins / (wins + losses + ties)
 
 Dimensionen:
@@ -127,15 +127,15 @@ market_price
 ```
 
 Bedeutung der Fakten:
-- total_decks:
+- `total_decks`:
   Anzahl aller beobachteten Decks zum gegebenen Datum: COUNT(DISTINCT CORE_DECK_RESULT.deck_id)
-- decks_using_card:
+- `decks_using_card`:
   COUNT(DISTINCT TOPIC_CARD_COMPETITIVE.deck_id)
-- pokemon_copy_count:
+- `pokemon_copy_count`:
   Anzahl von Kartenkopien, die zu einem Pokemon gehören: SUM(pokemon_copy_count)
-- wins/losses/ties:
+- `wins`/`losses`/`ties`:
   Join über deck_id und summieren.
-- market_price:
+- `market_price`:
   market_price = AVG(market_price across printings)
 
 Name | Printing | Date | Price
@@ -144,7 +144,7 @@ Name | Printing | Date | Price
   Charizard ex | Holofoil     | 01.09 | 8.00
   Charizard ex | Reverse Holo | 01.09 | 9.50
 
-  muss zu einem Wert für Charizard ex zusammengefasst werden, alternativ: immer "Normal" bzw. das billigste Printing ("Skin" für competitive egal)
+  muss zu einem Wert für Charizard ex zusammengefasst werden: Hierzu wird der Durschnitt, das Minimum und das Maximum gebildet.
 
 Dimensionen:
 ```text
@@ -205,17 +205,17 @@ erDiagram
 
 Aus den Fakten in Kombination mit der Datumsdimension können hier die Kennzahlen
 
-usage_rate
-win_rate
+`usage_rate`, 
+`win_rate`
 
-average_copies_when_used
+`average_copies_when_used`
 
-average_month_price
-month_end_price
+`average_month_price`, 
+`month_end_price`
 
-price_change_1_month
-price_change_3_months
-price_change_12_months
+`price_change_1_month`,
+`price_change_3_months`,
+`price_change_12_months`
 
 ermittelt werden.
 
@@ -232,7 +232,7 @@ date_key          PK, FK
 
 market_price
 ```
-Auch hier soll über die verschiedenen printings zusammengefasst werden. (wie bei 2.)
+Auch hier soll der Preis über die verschiedenen printings zusammengefasst werden. (wie bei 2.)
 
 
 Dimensionen:
@@ -337,8 +337,8 @@ Für Analyseszenario 1:
 
 | Reporting fact | Derived from Core |
 |---|---|
-| `FACT_POKEMON_COMPETITIVE.pokemon_key` | `TOPIC_BASE_STATS_VS_COMPETITIVE.pokemon_id → DIM_POKEMON_REPORTING` |
-| `date_key` | `TOPIC...deck_id → CORE_DECK_RESULT.date_id → DIM_DATE_REPORTING` |
+| `FACT_POKEMON_COMPETITIVE.pokemon_key` | `TOPIC_BASE_STATS_VS_COMPETITIVE.pokemon_id --> DIM_POKEMON_REPORTING` |
+| `date_key` | `TOPIC...deck_id --> CORE_DECK_RESULT.date_id --> DIM_DATE_REPORTING` |
 | `decks_using_pokemon` | `COUNT(DISTINCT deck_id)` |
 | `pokemon_copy_count` | `SUM(pokemon_copy_count)` |
 | `wins/losses/ties` | join on `deck_id`, then `SUM()` |
@@ -348,7 +348,7 @@ Für Analyseszenario 2:
 
 | Reporting fact | Derived from Core |
 |---|---|
-| `card_key` | `TOPIC_CARD_COMPETITIVE.card_id → DIM_CARD_REPORTING` |
+| `card_key` | `TOPIC_CARD_COMPETITIVE.card_id --> DIM_CARD_REPORTING` |
 | `date_key` | through `CORE_DECK_RESULT.date_id` |
 | `decks_using_card` | `COUNT(DISTINCT deck_id)` |
 | `card_copy_count` | `SUM(card_copy_count)` |
