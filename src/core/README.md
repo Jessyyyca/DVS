@@ -22,8 +22,10 @@ psql "$DVS_DB_DSN" -f core/05_load_topics.sql
 psql "$DVS_DB_DSN" -f core/06_validate_core.sql
 # one-off: renames core.dim_date.day -> month_day and adds week_day; safe to re-run, skip on fresh installs
 psql "$DVS_DB_DSN" -f core/08_dim_date_week_day.sql
-# reporting answers for the three Fragestellungen (read-only)
+# reporting views for the three Fragestellungen (creates core.v_q* + v_reporting_bounds)
 psql "$DVS_DB_DSN" -f core/09_reporting_questions.sql
+# then query the views, scoped per session:
+#   psql "$DVS_DB_DSN" -c "SET dvs.from_date = '2024-01-01'; SET dvs.to_date = '2026-12-31'; SELECT * FROM core.v_q2_price_vs_usage LIMIT 50;"
 ```
 
 For a refresh while preserving manually curated card-to-Pokemon mappings:

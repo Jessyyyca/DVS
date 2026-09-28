@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS reporting.dim_date_reporting (
     date_id      integer NOT NULL UNIQUE,
     full_date    date NOT NULL UNIQUE,
     weekday      smallint NOT NULL CHECK (weekday BETWEEN 1 AND 7),
-    monthday     smallint NOT NULL CHECK (monthday BETWEEN 1 AND 31),
+    month_day     smallint NOT NULL CHECK (month_day BETWEEN 1 AND 31),
     month        smallint NOT NULL CHECK (month BETWEEN 1 AND 12),
     quarter      smallint NOT NULL CHECK (quarter BETWEEN 1 AND 4),
     year         integer NOT NULL

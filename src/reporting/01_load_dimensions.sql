@@ -5,23 +5,21 @@
 BEGIN;
 
 INSERT INTO reporting.dim_date_reporting (
-    date_id, full_date, weekday, monthday, month, quarter, year
+    date_id, full_date, week_day, month_day, month, year
 )
 SELECT
     date_id,
     full_date,
-    extract(isodow FROM full_date)::smallint AS weekday,
-    extract(day FROM full_date)::smallint AS monthday,
+    extract(isodow FROM full_date)::smallint AS week_day,
+    extract(day FROM full_date)::smallint AS month_day,
     month,
-    quarter,
     year
 FROM core.dim_date
 ON CONFLICT (date_id) DO UPDATE
 SET full_date = EXCLUDED.full_date,
-    weekday   = EXCLUDED.weekday,
-    monthday  = EXCLUDED.monthday,
+    week_day   = EXCLUDED.week_day,
+    month_day  = EXCLUDED.month_day,
     month     = EXCLUDED.month,
-    quarter   = EXCLUDED.quarter,
     year      = EXCLUDED.year;
 
 INSERT INTO reporting.dim_pokemon_reporting (
