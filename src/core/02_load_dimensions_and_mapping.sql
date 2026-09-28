@@ -14,17 +14,19 @@ WITH bounds AS (
     FROM bounds
     WHERE min_date IS NOT NULL AND max_date IS NOT NULL
 )
-INSERT INTO core.dim_date(date_id, full_date, day, month, quarter, year)
+INSERT INTO core.dim_date(date_id, full_date, month_day, week_day, month, quarter, year)
 SELECT to_char(full_date,'YYYYMMDD')::int,
        full_date,
        extract(day from full_date)::int,
+       extract(isodow from full_date)::int,
        extract(month from full_date)::int,
        extract(quarter from full_date)::int,
        extract(year from full_date)::int
 FROM dates
 ON CONFLICT (date_id) DO UPDATE SET
     full_date = excluded.full_date,
-    day = excluded.day,
+    month_day = excluded.month_day,
+    week_day = excluded.week_day,
     month = excluded.month,
     quarter = excluded.quarter,
     year = excluded.year;

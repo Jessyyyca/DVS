@@ -20,6 +20,10 @@ psql "$DVS_DB_DSN" -f core/02_load_dimensions_and_mapping.sql
 psql "$DVS_DB_DSN" -f core/04_load_core_support_facts.sql
 psql "$DVS_DB_DSN" -f core/05_load_topics.sql
 psql "$DVS_DB_DSN" -f core/06_validate_core.sql
+# one-off: renames core.dim_date.day -> month_day and adds week_day; safe to re-run, skip on fresh installs
+psql "$DVS_DB_DSN" -f core/08_dim_date_week_day.sql
+# reporting answers for the three Fragestellungen (read-only)
+psql "$DVS_DB_DSN" -f core/09_reporting_questions.sql
 ```
 
 For a refresh while preserving manually curated card-to-Pokemon mappings:

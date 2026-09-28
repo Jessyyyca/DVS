@@ -9,7 +9,8 @@ CREATE SCHEMA IF NOT EXISTS core;
 CREATE TABLE IF NOT EXISTS core.dim_date (
     date_id     INT PRIMARY KEY,
     full_date   DATE NOT NULL UNIQUE,
-    day         INT NOT NULL,
+    month_day   INT NOT NULL CHECK (month_day BETWEEN 1 AND 31),
+    week_day    INT NOT NULL CHECK (week_day BETWEEN 1 AND 7),
     month       INT NOT NULL,
     quarter     INT NOT NULL,
     year        INT NOT NULL

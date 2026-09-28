@@ -6,7 +6,7 @@ INSERT INTO core.topic_base_stats_vs_competitive(deck_id, pokemon_id, pokemon_co
 SELECT dc.deck_id,
        m.pokemon_id,
        sum(dc.quantity)::int AS pokemon_copy_count
-FROM public.deck_card dc
+FROM staging.deck_card dc
 JOIN core.core_deck_result dr ON dr.deck_id = dc.deck_id
 JOIN core.card_pokemon_map m ON m.card_id = dc.card_id
 GROUP BY dc.deck_id, m.pokemon_id
@@ -18,7 +18,7 @@ INSERT INTO core.topic_card_competitive(deck_id, card_id, card_copy_count)
 SELECT dc.deck_id,
        dc.card_id,
        sum(dc.quantity)::int AS card_copy_count
-FROM public.deck_card dc
+FROM staging.deck_card dc
 JOIN core.core_deck_result dr ON dr.deck_id = dc.deck_id
 JOIN core.dim_card c ON c.card_id = dc.card_id
 GROUP BY dc.deck_id, dc.card_id
