@@ -36,10 +36,6 @@ For a specific Pokemon/Card and date, `decks_using_*`, copy counts, wins, losses
 
 Rates such as `usage_rate` and `win_rate` are intentionally not stored as facts because they are non-additive. `05_create_metric_views.sql` derives them when queried.
 
-## Card set name
-
-`Star_Schemas_Reporting.md` includes `set_name` in `DIM_CARD_REPORTING`, but the current `core.dim_card` contains only `card_id`, `card_name`, and `rarity`. To keep the architectural direction `Core -> Reporting`, `set_name` is currently created but left `NULL` rather than reading the staging/source schema directly. If a set attribute is later added to Core, `01_load_dimensions.sql` can populate it without changing the star-schema grain.
-
 ## Load order
 
 Run the scripts in this order:

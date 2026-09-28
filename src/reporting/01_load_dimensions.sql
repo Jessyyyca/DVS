@@ -41,16 +41,12 @@ SET pokemon_name     = EXCLUDED.pokemon_name,
     type_one         = EXCLUDED.type_one,
     type_two         = EXCLUDED.type_two;
 
--- Star_Schemas_Reporting.md contains set_name, but the current Core DIM_CARD
--- does not contain a set attribute. Reporting therefore leaves set_name NULL
--- instead of bypassing Core and reading the source/staging layer directly.
 INSERT INTO reporting.dim_card_reporting (
-    card_id, card_name, set_name, rarity
+    card_id, card_name, rarity
 )
 SELECT
     card_id,
     card_name,
-    NULL::text AS set_name,
     rarity
 FROM core.dim_card
 ON CONFLICT (card_id) DO UPDATE

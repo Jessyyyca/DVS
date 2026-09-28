@@ -59,8 +59,3 @@ SELECT
     (SELECT count(*) FROM reporting.dim_pokemon_reporting) AS reporting_pokemon,
     (SELECT count(*) FROM core.dim_card) AS core_cards,
     (SELECT count(*) FROM reporting.dim_card_reporting) AS reporting_cards;
-
--- set_name is expected to be NULL until Core carries a set attribute.
-SELECT count(*) AS cards_without_set_name
-FROM reporting.dim_card_reporting
-WHERE set_name IS NULL;

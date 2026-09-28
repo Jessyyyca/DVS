@@ -34,7 +34,6 @@ SELECT
     c.card_key,
     c.card_id,
     c.card_name,
-    c.set_name,
     c.rarity,
     d.date_key,
     d.full_date,
