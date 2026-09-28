@@ -1,7 +1,7 @@
 1. Starschema: Base stats vs. competitive performance
 
 Grain: Ein Pokemon x ein Tag
-
+```text
 FACT_POKEMON_COMPETITIVE
 --------------------------------
 pokemon_key         PK, FK
@@ -14,6 +14,7 @@ pokemon_copy_count
 wins
 losses
 ties
+```
 
 Bedeutung der Fakten:
 
@@ -34,6 +35,7 @@ Bedeutung der Fakten:
 
 Dimensionen:
 
+```text
 DIM_POKEMON_REPORTING
 --------------------------------
 pokemon_key          PK   ← surrogate key
@@ -59,9 +61,10 @@ day
 month
 quarter
 year
+```
 
 star_schema_mermaid:
-
+```mermaid
 erDiagram
     DIM_POKEMON_REPORTING ||--o{ FACT_POKEMON_COMPETITIVE : describes
     DIM_DATE_REPORTING ||--o{ FACT_POKEMON_COMPETITIVE : observed_on
@@ -99,13 +102,14 @@ erDiagram
         int losses
         int ties
     }
-
+```
 
 
 2. Starschema: Card price vs. competitive performance
 
 Grain: Eine Karte x ein Tag
 
+```text
 FACT_CARD_COMPETITIVE_PRICE
 --------------------------------
 card_key             PK, FK
@@ -120,6 +124,7 @@ losses
 ties
 
 market_price
+```
 
 Bedeutung der Fakten:
 - total_decks:
@@ -140,7 +145,7 @@ Bedeutung der Fakten:
   muss zu einem Wert für Charizard ex zusammengefasst werden, alternativ: immer "Normal" bzw. das billigste Printing ("Skin" für competitive egal)
 
 Dimensionen:
-
+```text
 DIM_CARD_REPORTING
 --------------------------------
 card_key               PK
@@ -158,9 +163,10 @@ day
 month
 quarter
 year
+```
 
 Starschema mermaid:
-
+```mermaid
 erDiagram
     DIM_CARD_REPORTING ||--o{ FACT_CARD_COMPETITIVE_PRICE : describes
     DIM_DATE_REPORTING ||--o{ FACT_CARD_COMPETITIVE_PRICE : observed_on
@@ -193,6 +199,7 @@ erDiagram
         int ties
         decimal market_price
     }
+```
 
 Aus den Fakten in Kombination mit der Datumsdimension können hier die Kennzahlen
 
@@ -214,7 +221,7 @@ ermittelt werden.
 3. Starschema: Pokémon base stats vs. card prices
 
 Grain: Ein Pokemon x eine Karte x ein Tag
-
+```text
 FACT_POKEMON_CARD_PRICE
 --------------------------------
 pokemon_key       PK, FK
@@ -222,12 +229,12 @@ card_key          PK, FK
 date_key          PK, FK
 
 market_price
-
+```
 Auch hier soll über die verschiedenen printings zusammengefasst werden. (wie bei 2.)
 
 
 Dimensionen:
-
+```text
 DIM_CARD_REPORTING
 --------------------------------
 card_key               PK
@@ -259,9 +266,11 @@ special_defense
 speed
 type_one
 type_two
+```
 
 Starschema mermaid:
 
+```mermaid
 erDiagram
     DIM_POKEMON_REPORTING ||--o{ FACT_POKEMON_CARD_PRICE : pokemon
     DIM_CARD_REPORTING ||--o{ FACT_POKEMON_CARD_PRICE : card
@@ -304,11 +313,12 @@ erDiagram
         int date_key PK,FK
         decimal market_price
     }
-
+```
 
 
 Schema Kombination der 3 "Sterne" mit Wiederverwendung der Dimensionen:
 
+```mermaid
 erDiagram
     DIM_POKEMON_REPORTING ||--o{ FACT_POKEMON_COMPETITIVE : describes
     DIM_DATE_REPORTING ||--o{ FACT_POKEMON_COMPETITIVE : date
@@ -319,7 +329,7 @@ erDiagram
     DIM_POKEMON_REPORTING ||--o{ FACT_POKEMON_CARD_PRICE : pokemon
     DIM_CARD_REPORTING ||--o{ FACT_POKEMON_CARD_PRICE : card
     DIM_DATE_REPORTING ||--o{ FACT_POKEMON_CARD_PRICE : date
-
+```
 
 Für Analyseszenario 1:
 
