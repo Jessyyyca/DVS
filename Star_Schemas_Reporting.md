@@ -1,4 +1,4 @@
-1. Starschema: Base stats vs. competitive performance
+# 1. Starschema: Base stats vs. competitive performance
 
 Grain: Ein Pokemon x ein Tag
 ```text
@@ -22,7 +22,7 @@ Bedeutung der Fakten:
   Anzahl aller beobachteten Decks zum gegebenen Datum: COUNT(DISTINCT CORE_DECK_RESULT.deck_id)
 - decks_using_pokemon:
   Anzahl aller Decks, die mindestens eine Karte beinhalten die zu einem Pokemon gemapped wurde: COUNT(DISTINCT TOPIC_BASE_STATS_VS_COMPETITIVE.deck_id)
-- pokemon_copy_count:
+- `pokemon_copy_count`:
   Anzahl von Kartenkopien, die zu einem Pokemon gehören: SUM(pokemon_copy_count)
 - wins, losses, ties:
   SUM(CORE_DECK_RESULT.wins)
@@ -138,7 +138,9 @@ Bedeutung der Fakten:
 - market_price:
   market_price = AVG(market_price across printings)
 
-( Charizard ex | Normal       | 01.09 | 5.00
+Name | Printing | Date | Price
+--|--|--|--
+ Charizard ex | Normal       | 01.09 | 5.00
   Charizard ex | Holofoil     | 01.09 | 8.00
   Charizard ex | Reverse Holo | 01.09 | 9.50
 
