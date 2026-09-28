@@ -1,3 +1,7 @@
+-- pg_trgm provides the similarity() function used by the fuzzy Card -> Pokemon fallback
+-- in 02_load_dimensions_and_mapping.sql.
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 BEGIN;
 
 CREATE SCHEMA IF NOT EXISTS core;
@@ -49,7 +53,7 @@ CREATE TABLE IF NOT EXISTS core.core_card_price (
 CREATE TABLE IF NOT EXISTS core.card_pokemon_map (
     card_id      BIGINT NOT NULL REFERENCES core.dim_card(card_id) ON DELETE CASCADE,
     pokemon_id   INT NOT NULL REFERENCES core.dim_pokemon(pokemon_id) ON DELETE CASCADE,
-    match_method TEXT NOT NULL CHECK (match_method IN ('automatic','manual')),
+    match_method TEXT NOT NULL CHECK (match_method IN ('automatic','automatic_fuzzy','manual')),
     PRIMARY KEY (card_id, pokemon_id)
 );
 
@@ -81,5 +85,14 @@ CREATE INDEX IF NOT EXISTS ix_core_card_price_card
     ON core.core_card_price(card_id);
 CREATE INDEX IF NOT EXISTS ix_core_map_pokemon
     ON core.card_pokemon_map(pokemon_id);
+
+-- Existing deployments: widen the match_method CHECK to also admit 'automatic_fuzzy'
+-- (rows produced by the pg_trgm similarity() fallback in 02_load_dimensions_and_mapping.sql).
+-- No-op on a fresh install because the CREATE TABLE above already declares the wider CHECK.
+ALTER TABLE core.card_pokemon_map
+    DROP CONSTRAINT IF EXISTS card_pokemon_map_match_method_check;
+ALTER TABLE core.card_pokemon_map
+    ADD CONSTRAINT card_pokemon_map_match_method_check
+    CHECK (match_method IN ('automatic','automatic_fuzzy','manual'));
 
 COMMIT;
