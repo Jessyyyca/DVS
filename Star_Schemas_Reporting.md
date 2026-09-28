@@ -332,6 +332,7 @@ erDiagram
     DIM_CARD_REPORTING ||--o{ FACT_POKEMON_CARD_PRICE : card
     DIM_DATE_REPORTING ||--o{ FACT_POKEMON_CARD_PRICE : date
 ```
+### Wie erhält man die Felder für das Reporting aus dem Core?
 
 Für Analyseszenario 1:
 
