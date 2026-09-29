@@ -107,7 +107,7 @@ erDiagram
 
 2. Starschema: Card price vs. competitive performance
 
-Grain: Eine Karte x ein Tag
+Grain: Eine Karte x ein Tag (competitive) x ein Tag (Preis)
 
 ```text
 FACT_CARD_COMPETITIVE_PRICE
