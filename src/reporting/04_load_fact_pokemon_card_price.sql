@@ -1,5 +1,5 @@
 -- 04_load_fact_pokemon_card_price.sql
--- Star 3: Pokemon base stats vs card prices.
+-- Analysis scenario 1: Pokemon type/base stats vs card prices.
 -- Grain: one Pokemon x one Card x one date.
 
 BEGIN;
@@ -11,6 +11,8 @@ WITH price AS (
         card_id,
         date_id,
         avg(market_price)::numeric(14,4) AS market_price,
+        percentile_cont(0.5) WITHIN GROUP (ORDER BY market_price)::numeric(14,4)
+            AS median_market_price,
         min(market_price)::numeric(14,4) AS min_market_price,
         max(market_price)::numeric(14,4) AS max_market_price
     FROM core.core_card_price
@@ -21,6 +23,7 @@ INSERT INTO reporting.fact_pokemon_card_price (
     card_key,
     date_key,
     market_price,
+    median_market_price,
     min_market_price,
     max_market_price
 )
@@ -29,6 +32,7 @@ SELECT
     c.card_key,
     d.date_key,
     pr.market_price,
+    pr.median_market_price,
     pr.min_market_price,
     pr.max_market_price
 FROM core.topic_pokemon_price t

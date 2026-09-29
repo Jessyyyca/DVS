@@ -40,16 +40,33 @@ SELECT *
 FROM reporting.fact_card_competitive_price
 WHERE decks_using_card > total_decks;
 
--- Average price must lie between min and max whenever all three are present.
+-- Daily price summaries must be ordered min <= median <= average/max bounds.
 SELECT *
 FROM reporting.fact_card_competitive_price
 WHERE market_price IS NOT NULL
-  AND (market_price < min_market_price OR market_price > max_market_price);
+  AND (
+      median_market_price IS NULL
+      OR market_price < min_market_price
+      OR market_price > max_market_price
+      OR median_market_price < min_market_price
+      OR median_market_price > max_market_price
+  );
 
 SELECT *
 FROM reporting.fact_pokemon_card_price
 WHERE market_price < min_market_price
-   OR market_price > max_market_price;
+   OR market_price > max_market_price
+   OR median_market_price < min_market_price
+   OR median_market_price > max_market_price;
+
+-- Scenario-2 timeline coverage: every fact price observation should appear once
+-- in the price-driven analysis view.
+SELECT
+    (SELECT count(*)
+     FROM reporting.fact_card_competitive_price
+     WHERE market_price IS NOT NULL) AS fact_price_observations,
+    (SELECT count(*)
+     FROM reporting.v_card_competitive_price_metrics) AS timeline_price_observations;
 
 -- Dimension coverage against Core.
 SELECT
