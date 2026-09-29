@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS reporting.dim_pokemon_reporting (
     defense           integer,
     special_attack    integer,
     special_defense   integer,
-    speed             integer,
+    speed              integer,
     type_one          text,
     type_two          text,
     base_stat_total   integer GENERATED ALWAYS AS (
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS reporting.dim_card_reporting (
     rarity        text
 );
 
--- Star 1: Pokemon base stats vs competitive performance.
+-- Analysis scenario 3: tournament usage vs Pokemon type/base stats.
 -- Grain: one Pokemon x one date.
 CREATE TABLE IF NOT EXISTS reporting.fact_pokemon_competitive (
     pokemon_key          integer NOT NULL REFERENCES reporting.dim_pokemon_reporting(pokemon_key),
@@ -62,40 +62,49 @@ CREATE TABLE IF NOT EXISTS reporting.fact_pokemon_competitive (
     CHECK (decks_using_pokemon <= total_decks)
 );
 
--- Star 2: Card price vs competitive performance.
+-- Analysis scenario 2: card price vs competitive performance.
 -- Grain: one Card x one date.
--- market_price is the average across printings for the card/date.
--- min/max are retained because the reporting specification explicitly asks for them.
+-- Price columns summarize all available printings for that card/date.
 CREATE TABLE IF NOT EXISTS reporting.fact_card_competitive_price (
-    card_key          integer NOT NULL REFERENCES reporting.dim_card_reporting(card_key),
-    date_key          integer NOT NULL REFERENCES reporting.dim_date_reporting(date_key),
-    total_decks       bigint NOT NULL CHECK (total_decks >= 0),
-    decks_using_card  bigint NOT NULL CHECK (decks_using_card >= 0),
-    card_copy_count   bigint NOT NULL CHECK (card_copy_count >= 0),
-    wins              bigint NOT NULL CHECK (wins >= 0),
-    losses            bigint NOT NULL CHECK (losses >= 0),
-    ties              bigint NOT NULL CHECK (ties >= 0),
-    market_price      numeric(14,4),
-    min_market_price  numeric(14,4),
-    max_market_price  numeric(14,4),
+    card_key             integer NOT NULL REFERENCES reporting.dim_card_reporting(card_key),
+    date_key             integer NOT NULL REFERENCES reporting.dim_date_reporting(date_key),
+    total_decks          bigint NOT NULL CHECK (total_decks >= 0),
+    decks_using_card     bigint NOT NULL CHECK (decks_using_card >= 0),
+    card_copy_count      bigint NOT NULL CHECK (card_copy_count >= 0),
+    wins                 bigint NOT NULL CHECK (wins >= 0),
+    losses               bigint NOT NULL CHECK (losses >= 0),
+    ties                 bigint NOT NULL CHECK (ties >= 0),
+    market_price         numeric(14,4),
+    median_market_price  numeric(14,4),
+    min_market_price     numeric(14,4),
+    max_market_price     numeric(14,4),
     PRIMARY KEY (card_key, date_key),
     CHECK (decks_using_card <= total_decks),
     CHECK (market_price IS NULL OR market_price >= 0),
+    CHECK (median_market_price IS NULL OR median_market_price >= 0),
     CHECK (min_market_price IS NULL OR min_market_price >= 0),
     CHECK (max_market_price IS NULL OR max_market_price >= 0)
 );
 
--- Star 3: Pokemon base stats vs card prices.
+-- Analysis scenario 1: card prices vs Pokemon type/base stats.
 -- Grain: one Pokemon x one Card x one date.
 CREATE TABLE IF NOT EXISTS reporting.fact_pokemon_card_price (
-    pokemon_key      integer NOT NULL REFERENCES reporting.dim_pokemon_reporting(pokemon_key),
-    card_key         integer NOT NULL REFERENCES reporting.dim_card_reporting(card_key),
-    date_key         integer NOT NULL REFERENCES reporting.dim_date_reporting(date_key),
-    market_price     numeric(14,4) NOT NULL CHECK (market_price >= 0),
-    min_market_price numeric(14,4) NOT NULL CHECK (min_market_price >= 0),
-    max_market_price numeric(14,4) NOT NULL CHECK (max_market_price >= 0),
+    pokemon_key          integer NOT NULL REFERENCES reporting.dim_pokemon_reporting(pokemon_key),
+    card_key             integer NOT NULL REFERENCES reporting.dim_card_reporting(card_key),
+    date_key             integer NOT NULL REFERENCES reporting.dim_date_reporting(date_key),
+    market_price         numeric(14,4) NOT NULL CHECK (market_price >= 0),
+    median_market_price  numeric(14,4) NOT NULL CHECK (median_market_price >= 0),
+    min_market_price     numeric(14,4) NOT NULL CHECK (min_market_price >= 0),
+    max_market_price     numeric(14,4) NOT NULL CHECK (max_market_price >= 0),
     PRIMARY KEY (pokemon_key, card_key, date_key)
 );
+
+-- Keep the script rerunnable if these fact tables were created by an older
+-- Reporting version before median price was added.
+ALTER TABLE reporting.fact_card_competitive_price
+    ADD COLUMN IF NOT EXISTS median_market_price numeric(14,4);
+ALTER TABLE reporting.fact_pokemon_card_price
+    ADD COLUMN IF NOT EXISTS median_market_price numeric(14,4);
 
 CREATE INDEX IF NOT EXISTS ix_fact_pokemon_competitive_date
     ON reporting.fact_pokemon_competitive(date_key);

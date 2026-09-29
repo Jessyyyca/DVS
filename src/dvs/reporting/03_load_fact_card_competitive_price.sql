@@ -1,7 +1,8 @@
 -- 03_load_fact_card_competitive_price.sql
--- Star 2: Card price vs competitive performance.
+-- Analysis scenario 2: Card price vs competitive performance.
 -- Grain: one Card x one date.
 -- A fact row is created when either competitive usage OR a price observation exists.
+-- This means daily price history remains present even on dates without tournaments.
 
 BEGIN;
 
@@ -33,6 +34,8 @@ price AS (
         card_id,
         date_id,
         avg(market_price)::numeric(14,4) AS market_price,
+        percentile_cont(0.5) WITHIN GROUP (ORDER BY market_price)::numeric(14,4)
+            AS median_market_price,
         min(market_price)::numeric(14,4) AS min_market_price,
         max(market_price)::numeric(14,4) AS max_market_price
     FROM core.core_card_price
@@ -53,6 +56,7 @@ INSERT INTO reporting.fact_card_competitive_price (
     losses,
     ties,
     market_price,
+    median_market_price,
     min_market_price,
     max_market_price
 )
@@ -66,6 +70,7 @@ SELECT
     coalesce(comp.losses, 0),
     coalesce(comp.ties, 0),
     pr.market_price,
+    pr.median_market_price,
     pr.min_market_price,
     pr.max_market_price
 FROM grain g
