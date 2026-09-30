@@ -17,12 +17,21 @@ Analysedimensionen:
 - Seltenheit einer Karte
 
 Kennzahlen:
-- usage_rate (Verhältnis aus Decks, die die Karte beinhalten gegen die Gesamtanzahl der Decks, die in einem bestimmten Zeitraum gespielt wurden)
-- win_rate (Verhältnis aus der Summe an Wins aller Decks, die die Karte beinhalten gegen die Gesamtzahl an Spielen aller Decks, die die Karte beinhalten)
-- adj_win_rate (Verhältnis aus der gewichteten Summe an Wins und Ties aller Decks, die die Karte beinhalten gegen die Gesamtzahl an Spielen aller Decks, die die Karte beinhalten)
-- average_price, median_price. min_price, max_price (Kennzahlen zum Preis einer Karte in einem bestimmten Zeitraum)
+- `usage_rate` (Verhältnis aus Decks, die die Karte beinhalten gegen die Gesamtanzahl der Decks, die in einem bestimmten Zeitraum gespielt wurden)
+- `win_rate` (Verhältnis aus der Summe an Wins aller Decks, die die Karte beinhalten gegen die Gesamtzahl an Spielen aller Decks, die die Karte beinhalten)
+- `adj_win_rate` (Verhältnis aus der gewichteten Summe an Wins und Ties aller Decks, die die Karte beinhalten gegen die Gesamtzahl an Spielen aller Decks, die die Karte beinhalten)
+- `average_price`, `median_price`, `min_price`, `max_price` (Kennzahlen zum Preis einer Karte in einem bestimmten Zeitraum)
 - Summe der base stats eines Pokemons
 
+### Staging, Core und Reporting Layer
+- Staging Layer: in [Staging-Layer.md](Staging-Layer.md) beschrieben
+- Core Layer: in [Core-Layer.md](Core-Layer.md) beschrieben
+- Reporting Layer: in [Reporting-Layer.md](Reporting-Layer.md) beschrieben
+
+# Entwicklerinformationen
+(@Herr Hänel, für Sie eher irrelevant. Falls Sie wollen, 
+können Sie mithilfe von `uv` (Python Package Manager) das Projekt auch lokal laufen lassen. Der Python Code sorgt aber lediglich 
+für das Befüllen der Staging Area. Der folgende Text ist KI generiert.)
 ## Setup
 
 ```sh
@@ -37,15 +46,13 @@ variable `DVS_DB_DSN`. `.env` is git-ignored.
 
 ```sh
 docker compose up -d
-export DVS_DB_DSN="postgres://dhw:Bride0-Viable-Outrage@localhost:5433/db?sslmode=disable"
+export DVS_DB_DSN="postgres://user:passwort@localhost:5433/db?sslmode=disable"
 dvs generate-sql | docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U dhw -d db
 dvs limitless --from-date 2026-01-01 --test
 ```
 
 The compose stack uses port `5433` on the host (so it doesn't fight a
-system Postgres on 5432) and persists data in the `dvs-pgdata` volume.
-`sslmode=disable` is fine inside the trusted network -- never expose
-this on a public network without TLS + auth.
+system Postgres on 5432).
 
 ## One CLI, five subcommands
 
