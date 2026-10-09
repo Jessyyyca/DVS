@@ -1,0 +1,15 @@
+const response = await fetch(
+  "/api/dashboards/uid/adsjctl/restore",
+  {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      version: 4 // Change to your last working version
+    })
+  }
+);
+
+console.log(response.status, await response.text());
