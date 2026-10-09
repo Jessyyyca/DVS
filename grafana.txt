@@ -1,0 +1,849 @@
+{
+  "apiVersion": "dashboard.grafana.app/v2",
+  "kind": "Dashboard",
+  "metadata": {
+    "name": "adsjctl"
+  },
+  "spec": {
+    "annotations": [
+      {
+        "kind": "AnnotationQuery",
+        "spec": {
+          "builtIn": true,
+          "enable": true,
+          "hide": true,
+          "iconColor": "rgba(0, 211, 255, 1)",
+          "name": "Annotations & Alerts",
+          "query": {
+            "datasource": {
+              "name": "-- Grafana --"
+            },
+            "group": "grafana",
+            "kind": "DataQuery",
+            "spec": {},
+            "version": "v0"
+          }
+        }
+      }
+    ],
+    "cursorSync": "Off",
+    "description": "In diesem Dashboard sind Statistiken zur Nutzung von Pokemon-Karten in Turnieren im Vergleich zu ihren Video-Spiel-Stats dargestellt.",
+    "editable": true,
+    "elements": {
+      "panel-1": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "group": "",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dataset": "db",
+                        "editorMode": "code",
+                        "format": "time_series",
+                        "rawQuery": true,
+                        "rawSql": "WITH filtered AS (\r\n    SELECT *\r\n    FROM reporting.v_pokemon_competitive_metrics\r\n    WHERE\r\n        $__timeFilter(full_date)\r\n        AND pokemon_key IN (${pokemon:csv})\r\n        AND (\r\n            type_one IN (${pokemon_type:sqlstring})\r\n            OR type_two IN (${pokemon_type:sqlstring})\r\n        )\r\n        AND base_stat_total BETWEEN\r\n            CAST('${min_bst}' AS integer)\r\n            AND CAST('${max_bst}' AS integer)\r\n)\r\nSELECT\r\n    DATE_TRUNC(\r\n        '${granularity:raw}',\r\n        full_date\r\n    ) AS \"time\",\r\n    pokemon_name AS \"metric\",\r\n    100.0 * SUM(wins)::numeric\r\n        / NULLIF(\r\n            SUM(\r\n                COALESCE(wins, 0)\r\n                + COALESCE(losses, 0)\r\n                + COALESCE(ties, 0)\r\n            ), 0\r\n        ) AS \"value\"\r\nFROM filtered\r\nGROUP BY\r\n    1, 2\r\nORDER BY\r\n    1, 2;",
+                        "sql": {
+                          "columns": [
+                            {
+                              "parameters": [],
+                              "type": "function"
+                            }
+                          ],
+                          "groupBy": [
+                            {
+                              "property": {
+                                "type": "string"
+                              },
+                              "type": "groupBy"
+                            }
+                          ],
+                          "limit": 50
+                        }
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 1,
+          "links": [],
+          "title": "Win-Rate (Pct) over Time",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "Win-Rate",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "13.2.3"
+          }
+        }
+      },
+      "panel-2": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "dg0onq06grchsf"
+                      },
+                      "group": "grafana-postgresql-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dataset": "db",
+                        "editorMode": "code",
+                        "format": "table",
+                        "rawQuery": true,
+                        "rawSql": "WITH filtered AS (\r\n    SELECT *\r\n    FROM reporting.v_pokemon_competitive_metrics\r\n    WHERE\r\n        $__timeFilter(full_date)\r\n        AND pokemon_key IN (${pokemon:csv})\r\n        AND (\r\n            type_one IN (${pokemon_type:sqlstring})\r\n            OR type_two IN (${pokemon_type:sqlstring})\r\n        )\r\n        AND base_stat_total BETWEEN\r\n            CAST('${min_bst}' AS integer)\r\n            AND CAST('${max_bst}' AS integer)\r\n)\r\nSELECT\r\n    DATE_TRUNC(\r\n        '${granularity:raw}',\r\n        full_date\r\n    ) AS \"time\",\r\n    pokemon_name AS \"metric\",\r\n    100.0 * SUM(decks_using_pokemon)::numeric\r\n        / NULLIF(SUM(total_decks), 0)\r\n        AS \"value\"\r\nFROM filtered\r\nGROUP BY\r\n    1, 2\r\nORDER BY\r\n    1, 2;",
+                        "sql": {
+                          "columns": [
+                            {
+                              "parameters": [],
+                              "type": "function"
+                            }
+                          ],
+                          "groupBy": [
+                            {
+                              "property": {
+                                "type": "string"
+                              },
+                              "type": "groupBy"
+                            }
+                          ],
+                          "limit": 50
+                        }
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 2,
+          "links": [],
+          "title": "Usage-Rate over Time",
+          "vizConfig": {
+            "group": "timeseries",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds",
+                    "seriesBy": "last"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "Usage-Rate",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 27,
+                    "gradientMode": "scheme",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineStyle": {
+                      "fill": "solid"
+                    },
+                    "lineWidth": 1,
+                    "pointSize": 3,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  },
+                  "thresholds": {
+                    "mode": "percentage",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "#EAB839",
+                        "value": 40
+                      },
+                      {
+                        "color": "red",
+                        "value": 60
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "13.2.3"
+          }
+        }
+      },
+      "panel-3": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "dg0onq06grchsf"
+                      },
+                      "group": "grafana-postgresql-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dataset": "db",
+                        "editorMode": "code",
+                        "format": "table",
+                        "rawQuery": true,
+                        "rawSql": "SELECT\r\n    pokemon_name,\r\n    100.0 * SUM(wins)::numeric\r\n        / NULLIF(\r\n            SUM(\r\n                COALESCE(wins, 0)\r\n                + COALESCE(losses, 0)\r\n                + COALESCE(ties, 0)\r\n            ), 0\r\n        ) AS win_rate,\r\n    100.0 * SUM(decks_using_pokemon)::numeric\r\n        / NULLIF(SUM(total_decks), 0)\r\n        AS usage_rate\r\nFROM reporting.v_pokemon_competitive_metrics\r\nWHERE\r\n    $__timeFilter(full_date)\r\n    AND pokemon_key IN (${pokemon:csv})\r\n    AND (\r\n        type_one IN (${pokemon_type:sqlstring})\r\n        OR type_two IN (${pokemon_type:sqlstring})\r\n    )\r\n    AND base_stat_total BETWEEN\r\n        CAST('${min_bst}' AS integer)\r\n        AND CAST('${max_bst}' AS integer)\r\nGROUP BY pokemon_key, pokemon_name\r\nORDER BY pokemon_name;",
+                        "sql": {
+                          "columns": [
+                            {
+                              "parameters": [],
+                              "type": "function"
+                            }
+                          ],
+                          "groupBy": [
+                            {
+                              "property": {
+                                "type": "string"
+                              },
+                              "type": "groupBy"
+                            }
+                          ],
+                          "limit": 50
+                        }
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": []
+            }
+          },
+          "description": "",
+          "id": 3,
+          "links": [],
+          "title": "Win-Rate vs Usage-Rate",
+          "vizConfig": {
+            "group": "xychart",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "fillOpacity": 50,
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "pointShape": "circle",
+                    "pointSize": {
+                      "fixed": 5
+                    },
+                    "pointStrokeWidth": 1,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "show": "points"
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "mapping": "auto",
+                "series": [
+                  {}
+                ],
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "single",
+                  "sort": "none"
+                }
+              }
+            },
+            "version": "13.2.3"
+          }
+        }
+      },
+      "panel-4": {
+        "kind": "Panel",
+        "spec": {
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "hidden": false,
+                    "query": {
+                      "datasource": {
+                        "name": "dg0onq06grchsf"
+                      },
+                      "group": "grafana-postgresql-datasource",
+                      "kind": "DataQuery",
+                      "spec": {
+                        "dataset": "db",
+                        "editorMode": "code",
+                        "format": "table",
+                        "rawQuery": true,
+                        "rawSql": "WITH aggregated AS (\r\n    SELECT\r\n        pokemon_key,\r\n        pokemon_name,\r\n        DATE_TRUNC(\r\n            '${granularity:raw}',\r\n            full_date\r\n        )::date AS period,\r\n        100.0 * SUM(wins)::numeric\r\n            / NULLIF(\r\n                SUM(\r\n                    COALESCE(wins, 0)\r\n                    + COALESCE(losses, 0)\r\n                    + COALESCE(ties, 0)\r\n                ), 0\r\n            ) AS win_rate,\r\n        100.0 * SUM(decks_using_pokemon)::numeric\r\n            / NULLIF(SUM(total_decks), 0)\r\n            AS usage_rate\r\n    FROM reporting.v_pokemon_competitive_metrics\r\n    WHERE\r\n        $__timeFilter(full_date)\r\n        AND pokemon_key IN (${pokemon:csv})\r\n        AND (\r\n            type_one IN (${pokemon_type:sqlstring})\r\n            OR type_two IN (${pokemon_type:sqlstring})\r\n        )\r\n        AND base_stat_total BETWEEN\r\n            CAST('${min_bst}' AS integer)\r\n            AND CAST('${max_bst}' AS integer)\r\n    GROUP BY\r\n        pokemon_key,\r\n        pokemon_name,\r\n        period\r\n),\r\npivot_data AS (\r\n    SELECT\r\n        pokemon_name,\r\n        period::text AS period_label,\r\n        CASE '${pivot_metric:raw}'\r\n            WHEN 'usage_rate' THEN usage_rate\r\n            ELSE win_rate\r\n        END AS metric_value\r\n    FROM aggregated\r\n)\r\nSELECT\r\n    CASE '${orientation:raw}'\r\n        WHEN 'date_rows' THEN period_label\r\n        ELSE pokemon_name\r\n    END AS row_dimension,\r\n    CASE '${orientation:raw}'\r\n        WHEN 'date_rows' THEN pokemon_name\r\n        ELSE period_label\r\n    END AS column_dimension,\r\n    ROUND(metric_value, 2) AS value\r\nFROM pivot_data\r\nORDER BY 1, 2;",
+                        "sql": {
+                          "columns": [
+                            {
+                              "parameters": [],
+                              "type": "function"
+                            }
+                          ],
+                          "groupBy": [
+                            {
+                              "property": {
+                                "type": "string"
+                              },
+                              "type": "groupBy"
+                            }
+                          ],
+                          "limit": 50
+                        }
+                      },
+                      "version": "v0"
+                    },
+                    "refId": "A"
+                  }
+                }
+              ],
+              "queryOptions": {},
+              "transformations": [
+                {
+                  "group": "groupingToMatrix",
+                  "kind": "Transformation",
+                  "spec": {
+                    "options": {
+                      "columnField": "column_dimension",
+                      "rowField": "row_dimension",
+                      "valueField": "value"
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          "description": "",
+          "id": 4,
+          "links": [],
+          "title": "Pivot Panel",
+          "vizConfig": {
+            "group": "table",
+            "kind": "VizConfig",
+            "spec": {
+              "fieldConfig": {
+                "defaults": {
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "align": "auto",
+                    "cellOptions": {
+                      "type": "color-background"
+                    },
+                    "footer": {
+                      "reducers": []
+                    },
+                    "inspect": false
+                  },
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "color": "green",
+                        "value": 0
+                      },
+                      {
+                        "color": "red",
+                        "value": 80
+                      }
+                    ]
+                  }
+                },
+                "overrides": []
+              },
+              "options": {
+                "cellHeight": "sm",
+                "showHeader": true
+              }
+            },
+            "version": "13.2.3"
+          }
+        }
+      }
+    },
+    "layout": {
+      "kind": "AutoGridLayout",
+      "spec": {
+        "columnWidthMode": "standard",
+        "items": [
+          {
+            "kind": "AutoGridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-1"
+              }
+            }
+          },
+          {
+            "kind": "AutoGridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-2"
+              }
+            }
+          },
+          {
+            "kind": "AutoGridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-3"
+              }
+            }
+          },
+          {
+            "kind": "AutoGridLayoutItem",
+            "spec": {
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-4"
+              }
+            }
+          }
+        ],
+        "maxColumnCount": 1,
+        "rowHeightMode": "standard"
+      }
+    },
+    "links": [],
+    "liveNow": false,
+    "preferences": {
+      "layout": {
+        "kind": "AutoGridLayout",
+        "spec": {
+          "columnWidthMode": "standard",
+          "items": [],
+          "maxColumnCount": 3,
+          "rowHeightMode": "standard"
+        }
+      }
+    },
+    "preload": false,
+    "tags": [],
+    "timeSettings": {
+      "autoRefresh": "",
+      "autoRefreshIntervals": [
+        "30d",
+        "90d",
+        "180d",
+        "1y",
+        "2y"
+      ],
+      "fiscalYearStartMonth": 0,
+      "from": "2025-01-06T21:02:24.457Z",
+      "hideTimepicker": false,
+      "nowDelay": "2month",
+      "timezone": "browser",
+      "to": "2026-01-07T21:02:24.457Z"
+    },
+    "title": "Pokemons und Competitive Play",
+    "variables": [
+      {
+        "kind": "QueryVariable",
+        "spec": {
+          "allowCustomValue": true,
+          "current": {
+            "text": "",
+            "value": ""
+          },
+          "hide": "dontHide",
+          "includeAll": false,
+          "multi": false,
+          "name": "query0",
+          "options": [],
+          "query": {
+            "datasource": {
+              "name": "dg0onq06grchsf"
+            },
+            "group": "grafana-postgresql-datasource",
+            "kind": "DataQuery",
+            "spec": {},
+            "version": "v0"
+          },
+          "refresh": "onDashboardLoad",
+          "regex": "",
+          "regexApplyTo": "value",
+          "skipUrlSync": false,
+          "sort": "disabled"
+        }
+      },
+      {
+        "kind": "QueryVariable",
+        "spec": {
+          "allowCustomValue": true,
+          "current": {
+            "text": "All",
+            "value": [
+              "$__all"
+            ]
+          },
+          "definition": "SELECT DISTINCT pokemon_type\r\nFROM (\r\n    SELECT type_one AS pokemon_type\r\n    FROM reporting.v_pokemon_competitive_metrics\r\n    UNION\r\n    SELECT type_two\r\n    FROM reporting.v_pokemon_competitive_metrics\r\n) t\r\nWHERE pokemon_type IS NOT NULL\r\nORDER BY pokemon_type;",
+          "hide": "dontHide",
+          "includeAll": true,
+          "label": "Pokemon Type",
+          "multi": true,
+          "name": "pokemon_type",
+          "options": [],
+          "query": {
+            "datasource": {
+              "name": "dg0onq06grchsf"
+            },
+            "group": "grafana-postgresql-datasource",
+            "kind": "DataQuery",
+            "spec": {
+              "dataset": "db",
+              "editorMode": "code",
+              "format": "table",
+              "query": "SELECT DISTINCT pokemon_type\r\nFROM (\r\n    SELECT type_one AS pokemon_type\r\n    FROM reporting.v_pokemon_competitive_metrics\r\n    UNION\r\n    SELECT type_two\r\n    FROM reporting.v_pokemon_competitive_metrics\r\n) t\r\nWHERE pokemon_type IS NOT NULL\r\nORDER BY pokemon_type;",
+              "rawQuery": true,
+              "rawSql": "SELECT DISTINCT pokemon_type\r\nFROM (\r\n    SELECT type_one AS pokemon_type\r\n    FROM reporting.v_pokemon_competitive_metrics\r\n    UNION\r\n    SELECT type_two\r\n    FROM reporting.v_pokemon_competitive_metrics\r\n) t\r\nWHERE pokemon_type IS NOT NULL\r\nORDER BY pokemon_type;",
+              "refId": "SQLVariableQueryEditor-VariableQuery",
+              "sql": {
+                "columns": [
+                  {
+                    "parameters": [],
+                    "type": "function"
+                  }
+                ],
+                "groupBy": [
+                  {
+                    "property": {
+                      "type": "string"
+                    },
+                    "type": "groupBy"
+                  }
+                ],
+                "limit": 50
+              }
+            },
+            "version": "v0"
+          },
+          "refresh": "onDashboardLoad",
+          "regex": "",
+          "regexApplyTo": "value",
+          "skipUrlSync": false,
+          "sort": "disabled"
+        }
+      },
+      {
+        "kind": "QueryVariable",
+        "spec": {
+          "allowCustomValue": true,
+          "current": {
+            "text": "All",
+            "value": [
+              "$__all"
+            ]
+          },
+          "definition": "SELECT DISTINCT\r\n    pokemon_name AS __text,\r\n    pokemon_key AS __value\r\nFROM reporting.v_pokemon_competitive_metrics\r\nWHERE\r\n    type_one IN (${pokemon_type:sqlstring})\r\n    OR type_two IN (${pokemon_type:sqlstring})\r\nORDER BY __text;",
+          "hide": "dontHide",
+          "includeAll": true,
+          "label": "Pokemon",
+          "multi": true,
+          "name": "pokemon",
+          "options": [],
+          "query": {
+            "datasource": {
+              "name": "dg0onq06grchsf"
+            },
+            "group": "grafana-postgresql-datasource",
+            "kind": "DataQuery",
+            "spec": {
+              "dataset": "db",
+              "editorMode": "code",
+              "format": "table",
+              "query": "SELECT DISTINCT\r\n    pokemon_name AS __text,\r\n    pokemon_key AS __value\r\nFROM reporting.v_pokemon_competitive_metrics\r\nWHERE\r\n    type_one IN (${pokemon_type:sqlstring})\r\n    OR type_two IN (${pokemon_type:sqlstring})\r\nORDER BY __text;",
+              "rawQuery": true,
+              "rawSql": "SELECT DISTINCT\r\n    pokemon_name AS __text,\r\n    pokemon_key AS __value\r\nFROM reporting.v_pokemon_competitive_metrics\r\nWHERE\r\n    type_one IN (${pokemon_type:sqlstring})\r\n    OR type_two IN (${pokemon_type:sqlstring})\r\nORDER BY __text;",
+              "refId": "SQLVariableQueryEditor-VariableQuery",
+              "sql": {
+                "columns": [
+                  {
+                    "parameters": [],
+                    "type": "function"
+                  }
+                ],
+                "groupBy": [
+                  {
+                    "property": {
+                      "type": "string"
+                    },
+                    "type": "groupBy"
+                  }
+                ],
+                "limit": 50
+              }
+            },
+            "version": "v0"
+          },
+          "refresh": "onDashboardLoad",
+          "regex": "",
+          "regexApplyTo": "value",
+          "skipUrlSync": false,
+          "sort": "disabled"
+        }
+      },
+      {
+        "kind": "CustomVariable",
+        "spec": {
+          "allowCustomValue": true,
+          "current": {
+            "text": "month",
+            "value": "month"
+          },
+          "hide": "dontHide",
+          "includeAll": false,
+          "label": "Date granularity",
+          "multi": false,
+          "name": "granularity",
+          "options": [],
+          "query": "day,week,month,year",
+          "skipUrlSync": false,
+          "valuesFormat": "csv"
+        }
+      },
+      {
+        "kind": "TextVariable",
+        "spec": {
+          "current": {
+            "text": "0",
+            "value": "0"
+          },
+          "hide": "dontHide",
+          "label": "Min. Basestat-Total",
+          "name": "min_bst",
+          "query": "0",
+          "skipUrlSync": false
+        }
+      },
+      {
+        "kind": "TextVariable",
+        "spec": {
+          "current": {
+            "text": "999",
+            "value": "999"
+          },
+          "hide": "dontHide",
+          "label": "Max. Basestat-Total",
+          "name": "max_bst",
+          "query": "999",
+          "skipUrlSync": false
+        }
+      },
+      {
+        "kind": "CustomVariable",
+        "spec": {
+          "allowCustomValue": true,
+          "current": {
+            "text": "pokemon_rows",
+            "value": "pokemon_rows"
+          },
+          "hide": "dontHide",
+          "includeAll": false,
+          "label": "Orientation",
+          "multi": false,
+          "name": "orientation",
+          "options": [],
+          "query": "pokemon_rows,date_rows",
+          "skipUrlSync": false,
+          "valuesFormat": "csv"
+        }
+      },
+      {
+        "kind": "CustomVariable",
+        "spec": {
+          "allowCustomValue": true,
+          "current": {
+            "text": "win_rate",
+            "value": "win_rate"
+          },
+          "hide": "dontHide",
+          "includeAll": false,
+          "label": "Drill measure",
+          "multi": false,
+          "name": "drill_across_metric",
+          "options": [],
+          "query": "win_rate,usage_rate",
+          "skipUrlSync": false,
+          "valuesFormat": "csv"
+        }
+      }
+    ]
+  }
+}
