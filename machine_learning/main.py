@@ -9,7 +9,6 @@ from sklearn.decomposition import PCA
 
 iris = datasets.load_iris()
 df = pd.DataFrame(iris.data, columns=["Sepal Length", "Sepal Width", "Petal Length", "Petal Width"])
-pprint(iris.target)
 pprint(df.head(150))
 
 def plot_data_3d():
@@ -46,7 +45,7 @@ FEATURES = ("sepal length", "sepal width", "petal length", "petal width")
 
 
 def ask_float(label: str) -> float:
-    """Prompts until the user types a parseable float (or `q` to quit)."""
+    """Prompts until the user types a parseable float or q to quit"""
     while True:
         raw = input(f"{label} in cm: ")
         if raw.lower() == "q":
@@ -62,11 +61,14 @@ def svc_example():
     Supervised learning example with iris dataset and SVC:
     Trains a model with a support vecor machine, to predict the flower class by its petal/sepal length/width
     """
-    # x is 150 rows x 4 features, y is the species class (0-2) for each row
+    # x is 150 rows with 4 features each, y is the species class (0-2) for each row
     X = iris.data
     y = iris.target
 
-    clf = svm.SVC()
+    # poly with degree 13 means, that we build a function of degree 13 to
+    # "draw the lines" between the dots. 13 is the amount my CPU can manage
+    # in reasonable time
+    clf = svm.SVC(kernel="poly", degree=13)
     clf.fit(X, y)
 
     # loop: ask 4 metrics -> predict -> print species name
