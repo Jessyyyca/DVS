@@ -1,0 +1,12 @@
+[project]
+name = "machine-learning"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "matplotlib>=3.11.2",
+    "mpl-tools>=0.4.3",
+    "pandas>=3.0.6",
+    "scikit-learn>=1.9.1",
+]
