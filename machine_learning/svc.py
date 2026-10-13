@@ -81,8 +81,7 @@ def svc_example():
 
         # [0] -> setosa, [1] -> versicolor, [2] -> virginica
         label_idx = clf.predict(np.array([values]))[0]
-        print(f"  predicted species: {SPECIES[label_idx]}  (class {label_idx})")
-
+        print(f"  predicted species: {SPECIES[label_idx]}  (class {label_idx})")    
 
 if __name__ == "__main__":
     svc_example()
