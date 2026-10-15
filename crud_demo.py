@@ -1,0 +1,58 @@
+from pymongo import MongoClient
+
+client = MongoClient("mongodb://localhost:27017/")
+
+db = client["sample_supplies"]
+sales = db["sales"]
+
+print("Connected to MongoDB!")
+print("Documents:", sales.count_documents({}))
+
+### CREATE
+new_sale = {
+    "_id": "tutorial_demo_sale",
+    "storeLocation": "Berlin",
+    "purchaseMethod": "Online",
+    "items": [
+        {
+            "name": "notebook",
+            "quantity": 2,
+            "price": 12.99
+        }
+    ],
+    "customer": {
+        "age": 25,
+        "satisfaction": 5
+    },
+    "couponUsed": False
+}
+
+sales.insert_one(new_sale)
+
+print("Sale inserted!")
+
+### READ
+
+### read specific id
+sale = sales.find_one({"_id": "tutorial_demo_sale"})
+
+print(sale)
+
+### read all online sales
+for sale in sales.find(
+    {"purchaseMethod": "Online"}
+).limit(5):
+    print(sale)
+
+### UPDATE
+sales.update_one(
+    {"_id": "tutorial_demo_sale"},
+    {"$set": {"customer.satisfaction": 4}}
+)
+
+print(sales.find_one({"_id": "tutorial_demo_sale"}))
+
+### DELETE
+sales.delete_one({"_id": "tutorial_demo_sale"})
+
+print("Sale deleted!")
