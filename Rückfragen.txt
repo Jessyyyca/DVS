@@ -19,3 +19,4 @@ Gibt es irgendwelche Beschränkungen?
 Müssen ALLE Code-Snippets ins Dokument? 
 Darf KI fürs Ausformulieren genutzt werden?
 Am Ende soll NUR dieses Dokument abgegeben werden oder was zusätzlich?
+Sollen externe Dateien (zB. Logical Data map) als Bild eingefügt, oder nur darauf verwiesen werden?
