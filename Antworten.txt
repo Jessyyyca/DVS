@@ -1,0 +1,6 @@
+Aufgabe 1:
+Herkunftssystem in der Datenbank angeben - optional
+Zweck der Core Tabellen im Text begründen
+
+Enddokument:
+Zentral mit Verweisen auf Unterdokumente
