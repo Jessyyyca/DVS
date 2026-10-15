@@ -1,0 +1,21 @@
+Aufgabe 1: DWH
+Laut Aufgabenstellung die Quelldaten erst in verschiedene Datenbanken und anschließend erst in Staging-Tabellen einfügen. 
+--> Wir haben das aktuell direkt importiert.
+
+Aufgabe 2: Reporting
+Wir müssen noch in Textform die OLAP-Funktionen erklären, sowie die Fragestellung, die untersucht werden soll.
+
+Aufgabe 3: Machine Learning
+Beschreibung der Anwendungsfälle und Bedingungen für JEDEN Algorithmus oder nur die 2 ausgewählten? 
+--> Wir haben alle kurz beschrieben und sind auf 2 konkret eingegangen.
+
+Aufgabe 4: NoSQL
+Frage geklärt.
+
+Aufgabe 5: Enddokument
+Wie soll das konkret aussehen? 
+Welcher Umfang wird erwartet? 
+Gibt es irgendwelche Beschränkungen? 
+Müssen ALLE Code-Snippets ins Dokument? 
+Darf KI fürs Ausformulieren genutzt werden?
+Am Ende soll NUR dieses Dokument abgegeben werden oder was zusätzlich?
