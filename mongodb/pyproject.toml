@@ -1,0 +1,20 @@
+[project]
+name = "mongodb"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "kurama", email = "paul.zenker.pz@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "pymongo>=4.19.0",
+    "python-dotenv>=1.2.3",
+]
+
+[project.scripts]
+mongodb = "mongodb:main"
+
+[build-system]
+requires = ["uv_build>=0.12.3,<0.13.0"]
+build-backend = "uv_build"

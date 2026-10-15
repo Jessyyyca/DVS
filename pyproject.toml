@@ -33,4 +33,5 @@ testpaths = ["tests"]
 [tool.uv.workspace]
 members = [
     "machine_learning",
+    "mongodb",
 ]
