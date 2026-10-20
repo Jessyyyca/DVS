@@ -130,7 +130,7 @@ erDiagram
 
 ### 3.4 Topic-Tabelle: `core.topic_card_competitive`
 
-**Fachlicher Zweck:** Die Nutzung einer **konkreten Karte** in einem Competitive-Deck abbilden. Im Unterschied zur Pokémon-bezogenen Topic-Tabelle bleibt hier die `card_id` erhalten; verschiedene Karten desselben Pokémon sind somit getrennt analysierbar.
+**Fachlicher Zweck:** Die Nutzung einer **konkreten Karte** in einem Competitive-Deck abbilden. Im Unterschied zur Pokémon-bezogenen Topic-Tabelle bleibt hier die `card_id` erhalten; verschiedene Karten derselben Pokémon sind somit getrennt analysierbar.
 
 **Granularität:** Eine Zeile je Kombination aus **Deck und Karte**. `card_copy_count` zählt die Anzahl dieser Karte im Deck.
 
