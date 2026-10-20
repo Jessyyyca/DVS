@@ -14,7 +14,7 @@ Die Schicht verfolgt insbesondere diese Ziele:
 - **Vergleichbarkeit:** Gemeinsame Datums-, Pokémon- und Kartendimensionen für mehrere Auswertungen.
 - **Historische Betrachtung:** Zeitliche Entwicklung von Competitive-Nutzung, Ergebnissen und Kartenpreisen analysieren.
 
-**Fakten** enthalten messbare beziehungsweise aggregierte Werte; **Dimensionen** beschreiben, *für welches Objekt* und *für welchen Zeitraum* die Werte gelten. Das **Grain (Granularität)** bestimmt die Bedeutung **einer einzelnen Zeile** der Faktentabelle. Es muss eindeutig definiert sein, bevor aggregiert und gejoint wird.
+**Fakten** enthalten messbare beziehungsweise aggregierte Werte; **Dimensionen** beschreiben, *für welches Objekt* und *für welchen Zeitraum* die Werte gelten. Das **Grain (Granularität)** bestimmt die Bedeutung **einer einzelnen Zeile** der Faktentabelle.
 
 ## 2. Gemeinsame Reporting-Dimensionen
 
