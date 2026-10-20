@@ -39,7 +39,7 @@ Es gibt also Pokemon und Typen. Mithilfe von `staging.pokemon_type` wird typ id 
 ### Limitless API
 Limitless ist eine Webseite, auf welcher Pokemon Turniere (online) stattfinden. Jedes der Turniere ist per API abfragbar. 
 An einem Turnier können mehrere Spieler teilnehmen, wobei jeder Spieler ein Deck besitzt. Dieses Deck ist dem Turnier 1:1 
-zuortenbar. Eine Deck Entität ist genau einem Turnier zuortenbar. Ein Turnier kann - und wird - mehrere Decks besitzen. Die 
+zuortbar. Eine Deck Entität ist genau einem Turnier zuortenbar. Ein Turnier kann - und wird - mehrere Decks besitzen. Die 
 Kardinalität ist also n:1. Falls ein Deck mit den Karten A, B und C in mehreren Tournieren vorkommnt, heißt das also, dass dieses
 Deck in Form von mehreren Entitäten/Reihen/Tupeln in der Datenbank vorkommt. Aufgrund dessen, dass jedes Deck genau zu einem Turnier
 gehört, hängen an dem Deck die Attribute `wins`, `losses` und `ties`. Das sind die für unsere kompetetiv gerichteten Fragen die wichtigsten Daten.  
