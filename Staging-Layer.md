@@ -1,7 +1,7 @@
 Alle Daten, um die gegebenen 3 Fragen zu beantworten, kommen aus unterschiedlichen REST APIs. 
 
 ### Die PokeAPI
-Die wichtigste davon ist die PokiAPI, welche Daten zu allen Pokemon beinhaltet. Das Pythonskript
+Die wichtigste davon ist die PokeAPI, welche Daten zu allen Pokemon beinhaltet. Das Pythonskript
 iteriert alle Pokemon IDs von 0 bis 2000, bis keine Antwort mehr kommt. Im Fall, dass die Antwort 404 ist, wurde also jedes Pokemon abgefragt. 
 Das Layout sieht wie folgt aus:
 
