@@ -149,7 +149,7 @@ erDiagram
 
 **Fachlicher Zweck:** Einmalige, einheitliche Ablage des ausgewerteten Ergebnisses eines Decks. Sowohl die Pokémon- als auch die Kartenanalyse benötigen dieselben Competitive-Ergebnisse.
 
-**Granularität des vorliegenden Entwurfs:** Eine Zeile pro `deck_id` mit genau einem zugeordneten `date_id`.
+**Granularität:** Eine Zeile pro `deck_id` mit genau einem zugeordneten `date_id`.
 
 **Wichtige Auswertungsregel:** Nach einem Join mit einer Topic-Tabelle zählen die Ergebnisse eines Decks zu jeder darin vertretenen Pokémon- oder Kartenkategorie. Das ist für die Frage „Wie schneiden Decks ab, die X enthalten?“ sinnvoll.
 
@@ -171,9 +171,7 @@ Die Typinformationen entstehen aus den Staging-Tabellen `P_type` und `P_pokemon_
 ### 4.2 `core.dim_date`
 **Zweck:** Zeitinformationen über unterschiedliche Datenquellen und Sachverhalte einheitlich bereitstellen. Über dieselbe Datumsdimension lassen sich Deck-Ergebnisse und Preisbeobachtungen zeitlich einordnen, nach Wochentagen gruppieren oder Monatsvergleiche bilden.
 
-`date_id` fungiert im Core als stabiler Datumsbezug; `full_date` enthält das Datum selbst. Für das Reporting können zusätzliche Attribute wie Quartal und Tagesnummer ergänzt werden. Beobachtungstag, Wettbewerbstag und Preisstichtag sind fachlich nicht automatisch identisch, die Bedeutung des Datums muss also dokumentiert werden.
+`date_id` fungiert im Core als stabiler Datumsbezug; `full_date` enthält das Datum selbst. Beobachtungstag, Wettbewerbstag und Preisstichtag sind fachlich nicht automatisch identisch, die Bedeutung des Datums muss also dokumentiert werden.
 
 ### 4.3 `core.dim_card`
 **Zweck:** Karten anhand einer stabilen Kartenidentität beschreiben und nach Namen sowie Seltenheit untersuchen. Durch die zentrale Dimension werden Kartenbezeichnungen nicht in jeder Topic- und Preistabelle redundant gespeichert.
-
-Im Reporting-Entwurf wird zusätzlich `set_name` verwendet. Dieses Feld ist in der hier dokumentierten Core-Dimension bisher **nicht enthalten**. Seine Herkunft aus dem Staging muss geklärt und der Core gegebenenfalls entsprechend erweitert werden. `card_id` muss eine konkrete Karte eindeutig unterscheiden da Kartennamen allein dafür ungeeignet sind.
