@@ -337,5 +337,3 @@ Schema 1 betrachtet Pokémon, Schema 2 konkrete Karten und Schema 3 ihre Verknü
 | `market_price` | Nicht summieren; Mittelwert, letzter Preisstand oder Änderung verwenden | Mittelwert/Verteilung nur mit klarem Bezugsobjekt und definierter Gewichtung |
 | `usage_rate`, `win_rate` | Aus den aufsummierten **geeigneten** Zählern/Nennern neu berechnen | Nicht unbesehen über Kategorien mitteln oder aggregieren |
 
-Damit werden Kennzahlen nicht nur technisch berechenbar, sondern auch fachlich sinnvoll interpretierbar.
-
