@@ -91,7 +91,7 @@ erDiagram
 ```
 
 ### Tickermint API
-In eine der Fragen ist für uns wichtig, welchen Wert die Karten haben. Dafür nutzen wir Tickermint. Ich würde es beschreiben als die Börse für
+In einer der zweiten und dritten Frage ist für uns wichtig, welchen Wert die jeweiligen Pokemonkarten haben. Dafür nutzen wir Tickermint. Ich würde es beschreiben als die Börse für
 Pokemon Karten. Durch die Tickermint-API kann für jede Karte zu jedem Datum der Preis abgefragt werden. Hier gibt es jedoch eine Herausforderung: 
 Die Tickermint Karten - und Namen - sind andere, als die der Limitless API. Wärend Limitless Karten keine echten Karten beschreibt, sondern nur 
 die digitale Version für die Art Online-Spiel, welches es dort wohl gibt, beschreibt Tickermint tatsächlich physische, echte Karten. 
@@ -102,15 +102,14 @@ Das Pokemon einer Karte kann also in meheren Sets vorkommen. Eine Pikachu Karte 
 
 #### Zur API Abfrage
 Die API benötigt den Name der Karte. Die Antwort ist eine Liste von Ergebnissen. Da es auch bei Limitless, weshalb auch immer, Informationen
-zu Set und nummer im Set gibt, wird zur Abfrage der Tickermit API wurde also jede der 2600 Limitless Karten der Turniere durchgegangen,
-und eine Seach-Query im Format: `<Karten Name> <Set>/<Nr im Set>` an Tickermint gesendet. Wenn es ein Ergnis gab - oder auch mehere weil mehere Printings - wurde es gespeichert. Gegenüber dazu, wie Staging eigentlich funktioniert, haben wir uns hier dafür entschieden, an der Tickermint Karte in `card_product` die Limitless Karte zuzuordnen, aus welcher die Search-Query
-erstellt wurde (`card_product.card_id`). Andernfalls wäre das Mapping im Core-Layer wirklich sinnloser Aufwand, welche Karten von Limitless mit welchen von Tickermint "verwand" sind. Das Problem, dass es dennoch gibt, ist, dass es oft vorkommt, dass
-einer Limitless Karte mehrere Tickermint Karten zugeordnet werden. 
+zu Set und nummer im Set gibt, wird zur Abfrage der Tickermit API wurde also jede - in unserem Beispiel ~2600 - der Limitless Karten durchgegangen,
+und eine Seach-Query im Format: `<Karten Name> <Set>/<Nr im Set>` an Tickermint gesendet. Wenn es ein Ergnis gab - oder auch mehere weil mehere Printings - wurde es gespeichert. Gegenüber dazu, wie Staging eigentlich funktioniert, haben wir uns hier dafür entschieden, an der Tickermint Karte in `card_product` die Limitless Karte mittels `card_id` zuzuordnen, aus welcher die Search-Query
+erstellt wurde (`card_product.card_id`). Andernfalls wäre das Mapping im Core-Layer wirklich sinnloser Aufwand, welche Karten von Limitless mit welchen von Tickermint "verwand" sind. Dennoch besteht folgendes Problem: zu jeder Search-Query, welche aus einer Karte von Limitless erstellt wurde und an Tickermint gesendet wurde, kann es mehrere Ergebnisse geben. In diesem Fall wird auch jedes Ergebnis gespeichert, indem es der Limitless Karte zugeordnet wird, aus welcher die Suchanfrage erstellt wurde. Die Kardinalität ist also `1 Limitless Karte <--> n Tickermint Karten`. Wie mit dieser Herausforderung letztendlich umgegangen wird, ist allerdings Inhalt des Core- und Reporting Layers.  
 
 Zu jeder der gefetchten Karten werden anschließend die Preise runtergeladen. Grundlegend gibt es zu jeder Karte pro Tag einen 
-Preis. Zumindest sehen die Antworten der API stark danach aus. Da der Preis nicht nur von der Karte sondern auch vom 
+Preis. Zumindest sehen die Antworten der API stark danach aus - offiziel in der API beschrieben wurde es nicht. Da der Preis nicht nur von der Karte sondern auch vom 
 Printing Typen abhängig ist, hängen an der `daily_price` Relation sowohl `product_id` (die Karten ID von Tickermint) und
-`printing_type`.
+`printing_type`. Dass das ID-Feld der Tickermint-Karte `product_id` heißt, ist auf die Tickermint-API zurückzuführen, welche ihre Karten-IDs so benennt. 
 
 Das Schema der drei betroffenen Tabellen sieht wie folgt aus:
 
