@@ -233,7 +233,7 @@ median_market_price     numeric, NULL erlaubt
 
 **Dimensionsbezug:** `DIM_POKEMON_REPORTING` liefert Namen, Typen und Basiswerte; `DIM_CARD_REPORTING` liefert Kartenmerkmale; `DIM_DATE_REPORTING` ermöglicht zeitliche Preisvergleiche.
 
-**Datenherkunft:** `TOPIC_POKEMON_PRICE` liefert die Pokémon-Karten-Zuordnung; `CORE_CARD_PRICE` liefert die Preise der Karte am jeweiligen Datum. Alle `printing_type`-Werte werden **nach derselben definierten Regel wie in Schema 2** zu vier Preiskennzahlen pro Karte und Tag verdichtet (Durchschnitt, Minimum, Maximum, Median). Anders als bei `FACT_CARD_COMPETITIVE` sind in `FACT_POKEMON_PRICE` Durchschnitt, Minimum und Maximum `NOT NULL`; nur der Median darf `NULL` sein. Diese unterschiedliche Nullability muss der ETL-Prozess respektieren. Die Definition von `market_price` als Durchschnitt ist anhand der tatsächlichen SQL-Befüllung zu verifizieren.
+**Datenherkunft:** `TOPIC_POKEMON_PRICE` liefert die Pokémon-Karten-Zuordnung; `CORE_CARD_PRICE` liefert die Preise der Karte am jeweiligen Datum. Alle `printing_type`-Werte werden **nach derselben definierten Regel wie in Schema 2** zu vier Preiskennzahlen pro Karte und Tag verdichtet (Durchschnitt, Minimum, Maximum, Median). Anders als bei `FACT_CARD_COMPETITIVE` sind in `FACT_POKEMON_PRICE` Durchschnitt, Minimum und Maximum `NOT NULL`; nur der Median darf `NULL` sein. Diese unterschiedliche Nullability muss der ETL-Prozess respektieren.
 
 **Interpretationsgrenze:** Pokémon-Basiswerte sind Eigenschaften des Pokémon, nicht der konkreten Kartenausgabe. Kartenpreise hängen potenziell auch von Seltenheit, Set, Zustand, Druckvariante und Sammelnachfrage ab. Entsprechend belegt eine statistische Korrelation noch keinen ursächlichen Zusammenhang.
 
