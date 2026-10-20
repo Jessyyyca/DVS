@@ -122,7 +122,7 @@ erDiagram
 ### 3.3 Topic-Tabelle: `TOPIC_POKEMON_PRICE`
 **Fachlicher Zweck:** Explizite Zuordnung einer konkreten Sammelkarte zu dem Pokémon, das durch die Karte repräsentiert wird.
 
-**Granularität:** Eine Zeile je gültiger Kombination **Pokémon × Karte**. Ein Pokémon kann zu mehreren Karten gehören. Falls auch eine Karte mehreren Pokémon zugeordnet werden kann, muss geprüft werden, ob diese Mehrfachzuordnung fachlich erwünscht ist.
+**Granularität:** Eine Zeile je gültiger Kombination **Pokémon × Karte**. Ein Pokemon kann zu mehreren Karten gehören.
 
 **Verwendung:** Die Zuordnung wird für die dritte Fragestellung verwendet und kann außerdem die Pokémon-bezogene Ableitung aus der Kartenverwendung unterstützen.
 
