@@ -171,7 +171,7 @@ Die Typinformationen entstehen aus den Staging-Tabellen `P_type` und `P_pokemon_
 ### 4.2 `core.dim_date`
 **Zweck:** Zeitinformationen über unterschiedliche Datenquellen und Sachverhalte einheitlich bereitstellen. Über dieselbe Datumsdimension lassen sich Deck-Ergebnisse und Preisbeobachtungen zeitlich einordnen, nach Wochentagen gruppieren oder Monatsvergleiche bilden.
 
-`date_id` fungiert im Core als stabiler Datumsbezug; `full_date` enthält das Datum selbst. Beobachtungstag, Wettbewerbstag und Preisstichtag sind fachlich nicht automatisch identisch, die Bedeutung des Datums muss also dokumentiert werden.
+`date_id` fungiert im Core als stabiler Datumsbezug unabhängig von Formatänderungen oder ähnlichem im Quellsystem. `full_date` enthält das Datum selbst. Beobachtungstag, Wettbewerbstag und Preisstichtag sind fachlich nicht automatisch identisch, die Bedeutung des Datums muss also dokumentiert werden.
 
 ### 4.3 `core.dim_card`
 **Zweck:** Karten anhand einer stabilen Kartenidentität beschreiben und nach Namen sowie Seltenheit untersuchen. Durch die zentrale Dimension werden Kartenbezeichnungen nicht in jeder Topic- und Preistabelle redundant gespeichert.
