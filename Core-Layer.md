@@ -34,7 +34,7 @@ Die Aufgabenstellung sieht **je Fragestellung eine Topic-Tabelle** sowie die ben
 Das folgende Diagramm zeigt die Beziehungen zwischen den drei Topic-Tabellen, den gemeinsam genutzten Core-Tabellen und den Dimensionstabellen.
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"primaryTextColor": "#171717", "textColor": "#171717", "lineColor": "#444444", "primaryBorderColor": "#555555", "background": "#ffffff"}}}%%
+%%{init: {"theme": "base", "themeVariables": {"primaryTextColor": "#171717", "textColor": "#171717", "lineColor": "#444444", "primaryBorderColor": "#ffffff", "edgeLabelBackground": "#ffffff", "erEdgeLabelBackground": "#ffffff", "tertiaryColor": "#ffffff", "tertiaryTextColor": "#171717"}}}%%
 erDiagram
     core.dim_pokemon {
         int pokemon_id PK
@@ -100,14 +100,23 @@ erDiagram
     core.core_deck_result ||--o{ core.topic_base_stats_vs_competitive : contains
     core.core_deck_result ||--o{ core.topic_card_competitive : contains
 
-    style core.dim_pokemon fill:#EAFBF5,stroke:#009F8C,color:#171717,stroke-width:2px
-    style core.dim_date fill:#FAEBFF,stroke:#BE42DE,color:#171717,stroke-width:2px
-    style core.dim_card fill:#FFF2E6,stroke:#E67714,color:#171717,stroke-width:2px
-    style core.core_deck_result fill:#E5F9FC,stroke:#009DBB,color:#171717,stroke-width:2px
-    style core.core_card_price fill:#E9FAEF,stroke:#13AB4E,color:#171717,stroke-width:2px
-    style core.topic_base_stats_vs_competitive fill:#F1EAFF,stroke:#8655D8,color:#171717,stroke-width:2px
-    style core.topic_pokemon_price fill:#FFF9DF,stroke:#C79100,color:#171717,stroke-width:2px
-    style core.topic_card_competitive fill:#FFEBEF,stroke:#DA4C61,color:#171717,stroke-width:2px
+    classDef dim_pokemon fill:#EAFBF5,stroke:#009F8C,color:#171717,stroke-width:2px
+    classDef dim_date fill:#FAEBFF,stroke:#BE42DE,color:#171717,stroke-width:2px
+    classDef dim_card fill:#FFF2E6,stroke:#E67714,color:#171717,stroke-width:2px
+    classDef core_deck_result fill:#E5F9FC,stroke:#009DBB,color:#171717,stroke-width:2px
+    classDef core_card_price fill:#E9FAEF,stroke:#13AB4E,color:#171717,stroke-width:2px
+    classDef topic_base_stats_vs_competitive fill:#F1EAFF,stroke:#8655D8,color:#171717,stroke-width:2px
+    classDef topic_pokemon_price fill:#FFF9DF,stroke:#C79100,color:#171717,stroke-width:2px
+    classDef topic_card_competitive fill:#FFEBEF,stroke:#DA4C61,color:#171717,stroke-width:2px
+
+    class core.dim_pokemon dim_pokemon
+    class core.dim_date dim_date
+    class core.dim_card dim_card
+    class core.core_deck_result core_deck_result
+    class core.core_card_price core_card_price
+    class core.topic_base_stats_vs_competitive topic_base_stats_vs_competitive
+    class core.topic_pokemon_price topic_pokemon_price
+    class core.topic_card_competitive topic_card_competitive
 ```
 
 ### 3.2 Topic-Tabelle: `core.topic_base_stats_vs_competitive`
