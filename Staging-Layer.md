@@ -40,15 +40,15 @@ Es gibt also Pokemon und Typen. Mithilfe von `staging.pokemon_type` wird typ id 
 Limitless ist eine Webseite, auf welcher Pokemon Turniere (online) stattfinden. Jedes der Turniere ist per API abfragbar. 
 An einem Turnier können mehrere Spieler teilnehmen, wobei jeder Spieler ein Deck besitzt. Dieses Deck ist dem Turnier 1:1 
 zuortbar. Eine Deck Entität ist genau einem Turnier zuortenbar. Ein Turnier kann - und wird - mehrere Decks besitzen. Die 
-Kardinalität ist also n:1. Falls ein Deck mit den Karten A, B und C in mehreren Tournieren vorkommnt, heißt das also, dass dieses
+Kardinalität ist also 1:n. Falls ein Deck mit den Karten A, B und C in mehreren Turnieren vorkommnt, heißt das also, dass dieses
 Deck in Form von mehreren Entitäten/Reihen/Tupeln in der Datenbank vorkommt. Aufgrund dessen, dass jedes Deck genau zu einem Turnier
-gehört, hängen an dem Deck die Attribute `wins`, `losses` und `ties`. Das sind die für unsere kompetetiv gerichteten Fragen die wichtigsten Daten.  
+gehört, hängen an dem Deck die Attribute `wins`, `losses` und `ties`. Das sind die - für unsere kompetitiv gerichteten Fragen - wichtigsten Daten.  
 
 #### Zur weiteren Struktur:
-Neben dem Deck `staging.deck`, gibt es auch Karten (`staging.card`). Wir haben die Daten der letzten 2 Jahre abefragt, woraus herforgeht, dass in etwa 2600 unterschiedliche
+Neben dem Deck `staging.deck`, gibt es auch Karten (`staging.card`). Wir haben die Daten der letzten 2 Jahre abefragt, woraus hervorgeht, dass etwa 2600 unterschiedliche
 Karten gespielt wurden.
-Das Mapping, welche Karten in einem Deck sind, finden in `staging.deck_card` statt. 
-Insgesamt gibt es 6 Millionen Verknüpfungen von Karte zu Deck, was Abfragen eher langsam macht. In in Fragen, welche sich nach der Stärke einer Karte richten, 
+Das Mapping, welche Karten in einem Deck sind, findet in `staging.deck_card` statt. 
+Insgesamt gibt es 6 Millionen Verknüpfungen von Karte zu Deck, was Abfragen eher langsam macht. In Fragen, welche sich nach der Stärke einer Karte richten, 
 muss also geschaut werden:
 - in welchen Decks kommt die Karte vor? (card -> deck_card)
 - wie hat das Deck abgeschnitten, also wins, losses und ties (deck_card -> deck). 
@@ -91,14 +91,14 @@ erDiagram
 ```
 
 ### Tickermint API
-In einer der zweiten und dritten Frage ist für uns wichtig, welchen Wert die jeweiligen Pokemonkarten haben. Dafür nutzen wir Tickermint. Ich würde es beschreiben als die Börse für
+In zwei der drei Fragen ist es relevant, welchen Wert die jeweiligen Pokemonkarten haben. Dafür nutzen wir Tickermint. Es lässt Börse für
 Pokemon Karten. Durch die Tickermint-API kann für jede Karte zu jedem Datum der Preis abgefragt werden. Hier gibt es jedoch eine Herausforderung: 
-Die Tickermint Karten - und Namen - sind andere, als die der Limitless API. Wärend Limitless Karten keine echten Karten beschreibt, sondern nur 
+Die Tickermint Karten - und Namen - sind andere, als die der Limitless API. Wärend Limitless keine echten Karten beschreibt, sondern nur 
 die digitale Version für die Art Online-Spiel, welches es dort wohl gibt, beschreibt Tickermint tatsächlich physische, echte Karten. 
 Für echte Karten, und somit der Tickermit API ist wichtig zu beachten, dass es mehrere Printings gibt. Ein Printing beschreibt im Prinzip, ob 
 die Karte glitzert, und falls ja, dann in welcher Art (holo, reverse_holo, einiges anderes) es glitzert. Ebenso kann die Karte auch einfach `common`
 sein, also eine normale, nicht glitzernde Variante. Ebenso gehört jede Karte zu einem Set und gehört somit zu einem spezifischen Jahr. 
-Das Pokemon einer Karte kann also in meheren Sets vorkommen. Eine Pikachu Karte gibt es also nicht nur einmal. 
+Das Pokemon einer Karte kann also in mehreren Sets vorkommen. Eine Pikachu Karte gibt es also nicht nur einmal. 
 
 #### Zur API Abfrage
 Die API benötigt den Name der Karte. Die Antwort ist eine Liste von Ergebnissen. Da es auch bei Limitless, weshalb auch immer, Informationen
