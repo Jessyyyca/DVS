@@ -4,7 +4,7 @@
 
 Der **Reporting-Layer** macht die Informationen für konkrete Analysefragen direkt auswertbar. Dazu werden komplexe Verknüpfungen aus dem Core bereits bei der Datenbefüllung vorgenommen und Ergebnisse auf die benötigte Granularität verdichtet.
 
-Die Aufgabenstellung verlangt im **Business-Schema** die Umsetzung von Star-Schemas und die **Ersetzung natürlicher Schlüssel durch künstliche Schlüssel**. Im vorliegenden Projekt werden aufgrund der drei Analysefragestellungen drei miteinander verbundene Star-Schemas verwendet, die gemeinsame Dimensionen wiederverwenden.
+Im vorliegenden Projekt werden aufgrund der drei Analysefragestellungen drei miteinander verbundene Star-Schemas verwendet, die gemeinsame Dimensionen wiederverwenden.
 
 Die Schicht verfolgt insbesondere diese Ziele:
 
