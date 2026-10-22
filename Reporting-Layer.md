@@ -134,7 +134,7 @@ Der zusammengesetzte fachliche Schlüssel (`card_key`, `date_key`) bezeichnet ge
 
 **Modellgrenze:** Für zeitversetzte Preiswirkungen (z. B. Preis eine Woche nach einem Turnier) muss die Auswertung gezielt Daten unterschiedlicher Tage vergleichen. Eine zusätzliche Datumsrolle ist in der finalen Faktentabelle nicht enthalten.
 
-### 4.2 Faktentabelle – finale Implementierung
+### 4.2 Faktentabelle
 
 ```text
 reporting.fact_card_competitive_price
@@ -179,8 +179,6 @@ Alle acht Competitive-Felder einschließlich `card_key`, `date_key` sind `NOT NU
 Daraus ergeben sich für dieses Beispiel: `AVG = 7,50`, `MIN = 5,00`, `MAX = 9,50`, `MEDIAN = 8,00`.
 
 In der finalen Faktentabelle sind **Durchschnitt, Minimum, Maximum und Median** direkt als eigene Spalten vorgesehen. Bei fehlenden Preisen sind hier alle vier Preiskennzahlen nullable.
-
-**Wichtig:** Ein Mittelwert über verfügbare Varianten kann zwischen Tagen allein deshalb schwanken, weil andere Druckvarianten vorliegen. Ein konsistenter Variantenvergleich oder die Zahl der berücksichtigten Varianten kann dies transparenter machen.
 
 ### 4.4 Berechenbare Kennzahlen
 
