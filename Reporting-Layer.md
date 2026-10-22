@@ -242,7 +242,6 @@ median_market_price     numeric, NULL erlaubt
 Das folgende Mermaid-Diagramm zeigt die **finalen Faktentabellen** mit ihren tatsächlich angegebenen Spalten. Die Dimensionen sind zur Übersicht vereinfacht dargestellt. Primär- und Fremdschlüsselmarkierungen bilden die beabsichtigten Beziehungen ab.
 
 ```mermaid
-%%{init: {"theme": "base", "themeVariables": {"primaryTextColor": "#17212b", "lineColor": "#374151", "fontFamily": "Arial"}}}%%
 erDiagram
     reporting.dim_pokemon_reporting {
         int pokemon_key PK
