@@ -41,10 +41,9 @@ The Reporting layer uses surrogate keys (`pokemon_key`, `card_key`, `date_key`).
 `reporting.dim_date_reporting` contains:
 
 - `full_date`
-- `weekday` — ISO weekday, Monday = 1 through Sunday = 7
-- `monthday` — day of month, 1 through 31
+- `week_day` — ISO weekday, Monday = 1 through Sunday = 7
+- `month_day` — day of month, 1 through 31
 - `month`
-- `quarter`
 - `year`
 
 ## Price aggregation
@@ -95,7 +94,7 @@ Rates such as `usage_rate` and `win_rate` are intentionally not stored as facts 
 
 ## Card set name
 
-`Star_Schemas_Reporting.md` includes `set_name` in `DIM_CARD_REPORTING`, but the current `core.dim_card` contains only `card_id`, `card_name`, and `rarity`. To keep the architectural direction `Core -> Reporting`, `set_name` is currently created but left `NULL` rather than reading the staging/source schema directly. If a set attribute is later added to Core, `01_load_dimensions.sql` can populate it without changing the star-schema grain.
+`reporting.dim_card_reporting` currently mirrors `core.dim_card`, which contains only `card_id`, `card_name`, and `rarity` — there is no `set_name` in either table. If a set attribute is later added to Core, `01_load_dimensions.sql` can populate it without changing the star-schema grain, keeping the architectural direction `Core -> Reporting` rather than reading the staging/source schema directly.
 
 ## Load order
 
