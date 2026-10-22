@@ -18,10 +18,10 @@ Die Schicht verfolgt insbesondere diese Ziele:
 
 ## 2. Gemeinsame Reporting-Dimensionen
 
-### 2.1 `DIM_POKEMON_REPORTING`
+### 2.1 `reporting.dim_pokemon_reporting`
 
 ```text
-DIM_POKEMON_REPORTING
+reporting.dim_pokemon_reporting
 --------------------------------
 pokemon_key             PK  -- künstlicher Schlüssel
 pokemon_id                  -- natürliche / Core-ID
@@ -41,10 +41,10 @@ Die Pokémon-Dimension beschreibt den Analysegegenstand für Szenario 1 und 3. S
 
 **Warum ein künstlicher Schlüssel?** `pokemon_key` ist ein vom Reporting vergebenes Identifikationsmerkmal, das unabhängig von einer Quell-ID verwaltet wird. `pokemon_id` bleibt zur Rückverfolgung in den Core erhalten. Künstliche Schlüssel erlauben grundsätzlich eine eigenständige Historisierung von Dimensionsänderungen.
 
-### 2.2 `DIM_CARD_REPORTING`
+### 2.2 `reporting.dim_card_reporting`
 
 ```text
-DIM_CARD_REPORTING
+reporting.dim_card_reporting
 --------------------------------
 card_key                PK  -- künstlicher Schlüssel
 card_id                     -- Core-ID
@@ -54,10 +54,10 @@ rarity
 
 Die Kartendimension unterstützt Analysen nach konkreter Karte, Set und Seltenheit. Eine gemeinsame `card_key` stellt sicher, dass der Preis einer Karte und ihre Competitive-Nutzung auf **dieselbe Kartenidentität** bezogen werden.
 
-### 2.3 `DIM_DATE_REPORTING`
+### 2.3 `reporting.dim_date_reporting`
 
 ```text
-DIM_DATE_REPORTING
+reporting.dim_date_reporting
 --------------------------------
 date_key                PK  -- künstlicher Schlüssel
  date_id                    -- Datums-ID aus Core
@@ -83,7 +83,7 @@ Die drei Star-Schemas verwenden bewusst dieselben Pokémon-, Karten- und Datumsd
 **Grain:** **Ein Pokémon × ein Competitive-Beobachtungstag**. Jede Kombination aus `pokemon_key` und `date_key` darf genau einmal vorkommen.
 
 ```text
-FACT_POKEMON_COMPETITIVE
+reporting.fact_pokemon_competitive
 --------------------------------
 pokemon_key             PK, FK
 date_key                PK, FK
@@ -101,10 +101,10 @@ ties
 
 | Fakt / Kennzahl | Interpretation und Ableitung |
 |---|---|
-| `total_decks` | Anzahl **aller** beobachteten Decks am betreffenden Tag: `COUNT(DISTINCT CORE_DECK_RESULT.deck_id)`; das ist der Nenner der Nutzungsquote. |
-| `decks_using_pokemon` | Anzahl unterschiedlicher Decks des Tages mit dem Pokémon: `COUNT(DISTINCT TOPIC_BASE_STATS_VS_COMPETITIVE.deck_id)`. |
+| `total_decks` | Anzahl **aller** beobachteten Decks am betreffenden Tag: `COUNT(DISTINCT core.core_deck_result.deck_id)`; das ist der Nenner der Nutzungsquote. |
+| `decks_using_pokemon` | Anzahl unterschiedlicher Decks des Tages mit dem Pokémon: `COUNT(DISTINCT core.topic_base_stats_vs_competitive.deck_id)`. |
 | `pokemon_copy_count` | Summe der auf Pokémon-Ebene zusammengeführten Kartenkopien in diesen Decks. |
-| `wins`, `losses`, `ties` | Summe der Resultate der Decks, die dieses Pokémon verwenden; Join der Topic-Tabelle mit `CORE_DECK_RESULT` über `deck_id`. |
+| `wins`, `losses`, `ties` | Summe der Resultate der Decks, die dieses Pokémon verwenden; Join der Topic-Tabelle mit `core.core_deck_result` über `deck_id`. |
 | `usage_rate` (berechnet) | `decks_using_pokemon / total_decks`, Nenner 0 wird mit 1 überschrieben. |
 | `win_rate` (berechnet) | `wins / (wins + losses + ties)`, Nenner 0 wird mit 1 überschrieben. |
 
@@ -115,11 +115,11 @@ ties
 ### 3.3 Datenherkunft
 
 ```text
-TOPIC_BASE_STATS_VS_COMPETITIVE (deck_id, pokemon_id, pokemon_copy_count)
-            + CORE_DECK_RESULT (deck_id, date_id, wins, losses, ties)
-            + DIM_POKEMON → DIM_POKEMON_REPORTING
-            + DIM_DATE    → DIM_DATE_REPORTING
-            = FACT_POKEMON_COMPETITIVE (pokemon_key, date_key, aggregierte Werte)
+core.topic_base_stats_vs_competitive (deck_id, pokemon_id, pokemon_copy_count)
+            + core.core_deck_result (deck_id, date_id, wins, losses, ties)
+            + core.dim_pokemon → reporting.dim_pokemon_reporting
+            + core.dim_date    → reporting.dim_date_reporting
+            = reporting.fact_pokemon_competitive (pokemon_key, date_key, aggregierte Werte)
 ```
 
 ## 4. Star-Schema 2: Kartenpreise und Competitive-Performance
@@ -137,7 +137,7 @@ Der zusammengesetzte fachliche Schlüssel (`card_key`, `date_key`) bezeichnet ge
 ### 4.2 Faktentabelle – finale Implementierung
 
 ```text
-FACT_CARD_COMPETITIVE
+reporting.fact_card_competitive_price
 --------------------------------
 card_key                PK, FK
 date_key                PK, FK
@@ -168,7 +168,7 @@ Alle acht Competitive-Felder einschließlich `card_key`, `date_key` sind `NOT NU
 
 ### 4.3 Zusammenführung der Druckvarianten
 
-`CORE_CARD_PRICE` enthält Preise auf dem Grain **Karte × Druckvariante × Tag**. Das Reporting-Schema benötigt nur **Karte × Tag**. Deshalb erfolgt eine Verdichtung über die pro Tag tatsächlich verfügbaren `printing_type`-Werte:
+`core.core_card_price` enthält Preise auf dem Grain **Karte × Druckvariante × Tag**. Das Reporting-Schema benötigt nur **Karte × Tag**. Deshalb erfolgt eine Verdichtung über die pro Tag tatsächlich verfügbaren `printing_type`-Werte:
 
 | Beispielkarte | Variante | Preis am 01.09. (Beispieldaten) |
 |---|---|---:|
@@ -196,15 +196,15 @@ Die vier Preiskennzahlen dürfen bei Aggregationen über Tage nicht einfach **su
 ### 4.5 Datenherkunft
 
 ```text
-TOPIC_CARD_COMPETITIVE -- deck_id --> CORE_DECK_RESULT
-          |                                   |
-          +--> card_id                      date_id
-                   |                           |
-               DIM_CARD_REPORTING       DIM_DATE_REPORTING
+core.topic_card_competitive -- deck_id --> core.core_deck_result
+          |                                            |
+          +--> card_id                              date_id
+                   |                                    |
+        reporting.dim_card_reporting       reporting.dim_date_reporting
                    |
-CORE_CARD_PRICE -- card_id + date_id --> Preisaggregation über printing_type
+core.core_card_price -- card_id + date_id --> Preisaggregation über printing_type
                    |
-         FACT_CARD_COMPETITIVE
+        reporting.fact_card_competitive_price
 ```
 
 Die Preisaggregation **muss vor dem Join** mit den Deck-Zeilen erfolgen. Andernfalls vervielfachen mehrere `printing_type`-Datensätze die Competitive-Kennzahlen.
@@ -218,7 +218,7 @@ Die Preisaggregation **muss vor dem Join** mit den Deck-Zeilen erfolgen. Andernf
 **Grain:** **Ein Pokémon × eine konkrete Karte × ein Preisbeobachtungstag**. Die `pokemon_key` ist hier zusätzlich zur `card_key` erforderlich, weil die analysierte Verknüpfung zwischen Pokémon-Eigenschaften und Kartenpreisen explizit auswertbar bleiben soll.
 
 ```text
-FACT_POKEMON_PRICE
+reporting.fact_pokemon_card_price
 --------------------------------
 pokemon_key             PK, FK
 card_key                PK, FK
@@ -231,9 +231,9 @@ median_market_price     numeric, NULL erlaubt
 
 `pokemon_key`, `card_key` und `date_key` sind `integer NOT NULL`; alle Preiskennzahlen verwenden `numeric`.
 
-**Dimensionsbezug:** `DIM_POKEMON_REPORTING` liefert Namen, Typen und Basiswerte; `DIM_CARD_REPORTING` liefert Kartenmerkmale; `DIM_DATE_REPORTING` ermöglicht zeitliche Preisvergleiche.
+**Dimensionsbezug:** `reporting.dim_pokemon_reporting` liefert Namen, Typen und Basiswerte; `reporting.dim_card_reporting` liefert Kartenmerkmale; `reporting.dim_date_reporting` ermöglicht zeitliche Preisvergleiche.
 
-**Datenherkunft:** `TOPIC_POKEMON_PRICE` liefert die Pokémon-Karten-Zuordnung; `CORE_CARD_PRICE` liefert die Preise der Karte am jeweiligen Datum. Alle `printing_type`-Werte werden **nach derselben definierten Regel wie in Schema 2** zu vier Preiskennzahlen pro Karte und Tag verdichtet (Durchschnitt, Minimum, Maximum, Median). Anders als bei `FACT_CARD_COMPETITIVE` sind in `FACT_POKEMON_PRICE` Durchschnitt, Minimum und Maximum `NOT NULL`; nur der Median darf `NULL` sein. Diese unterschiedliche Nullability muss der ETL-Prozess respektieren.
+**Datenherkunft:** `core.topic_pokemon_price` liefert die Pokémon-Karten-Zuordnung; `core.core_card_price` liefert die Preise der Karte am jeweiligen Datum. Alle `printing_type`-Werte werden **nach derselben definierten Regel wie in Schema 2** zu vier Preiskennzahlen pro Karte und Tag verdichtet (Durchschnitt, Minimum, Maximum, Median). Anders als bei `reporting.fact_card_competitive_price` sind in `reporting.fact_pokemon_card_price` Durchschnitt, Minimum und Maximum `NOT NULL`; nur der Median darf `NULL` sein. Diese unterschiedliche Nullability muss der ETL-Prozess respektieren.
 
 **Interpretationsgrenze:** Pokémon-Basiswerte sind Eigenschaften des Pokémon, nicht der konkreten Kartenausgabe. Kartenpreise hängen potenziell auch von Seltenheit, Set, Zustand, Druckvariante und Sammelnachfrage ab. Entsprechend belegt eine statistische Korrelation noch keinen ursächlichen Zusammenhang.
 
@@ -244,21 +244,21 @@ Das folgende Mermaid-Diagramm zeigt die **finalen Faktentabellen** mit ihren tat
 ```mermaid
 %%{init: {"theme": "base", "themeVariables": {"primaryTextColor": "#17212b", "lineColor": "#374151", "fontFamily": "Arial"}}}%%
 erDiagram
-    DIM_POKEMON_REPORTING {
+    reporting.dim_pokemon_reporting {
         int pokemon_key PK
         int pokemon_id
         string pokemon_name
     }
-    DIM_CARD_REPORTING {
+    reporting.dim_card_reporting {
         int card_key PK
         int card_id
         string card_name
     }
-    DIM_DATE_REPORTING {
+    reporting.dim_date_reporting {
         int date_key PK
         date full_date
     }
-    FACT_POKEMON_COMPETITIVE {
+    reporting.fact_pokemon_competitive {
         int pokemon_key PK,FK
         int date_key PK,FK
         bigint total_decks
@@ -268,7 +268,7 @@ erDiagram
         bigint losses
         bigint ties
     }
-    FACT_CARD_COMPETITIVE {
+    reporting.fact_card_competitive_price {
         int card_key PK,FK
         int date_key PK,FK
         bigint total_decks
@@ -282,7 +282,7 @@ erDiagram
         numeric max_market_price
         numeric median_market_price
     }
-    FACT_POKEMON_PRICE {
+    reporting.fact_pokemon_card_price {
         int pokemon_key PK,FK
         int card_key PK,FK
         int date_key PK,FK
@@ -291,19 +291,13 @@ erDiagram
         numeric max_market_price
         numeric median_market_price
     }
-    DIM_POKEMON_REPORTING ||--o{ FACT_POKEMON_COMPETITIVE : pokemon
-    DIM_DATE_REPORTING ||--o{ FACT_POKEMON_COMPETITIVE : day
-    DIM_CARD_REPORTING ||--o{ FACT_CARD_COMPETITIVE : card
-    DIM_DATE_REPORTING ||--o{ FACT_CARD_COMPETITIVE : day
-    DIM_POKEMON_REPORTING ||--o{ FACT_POKEMON_PRICE : pokemon
-    DIM_CARD_REPORTING ||--o{ FACT_POKEMON_PRICE : card
-    DIM_DATE_REPORTING ||--o{ FACT_POKEMON_PRICE : day
-    style DIM_POKEMON_REPORTING fill:#eafbf5,stroke:#00a78f,color:#17212b
-    style DIM_CARD_REPORTING fill:#fff3e8,stroke:#ea8500,color:#17212b
-    style DIM_DATE_REPORTING fill:#fbecff,stroke:#bb53d0,color:#17212b
-    style FACT_POKEMON_COMPETITIVE fill:#ebf6ff,stroke:#2980b9,color:#17212b
-    style FACT_CARD_COMPETITIVE fill:#fff4f5,stroke:#c74457,color:#17212b
-    style FACT_POKEMON_PRICE fill:#fffbe7,stroke:#b58b00,color:#17212b
+    reporting.dim_pokemon_reporting ||--o{ reporting.fact_pokemon_competitive : pokemon
+    reporting.dim_date_reporting ||--o{ reporting.fact_pokemon_competitive : day
+    reporting.dim_card_reporting ||--o{ reporting.fact_card_competitive_price : card
+    reporting.dim_date_reporting ||--o{ reporting.fact_card_competitive_price : day
+    reporting.dim_pokemon_reporting ||--o{ reporting.fact_pokemon_card_price : pokemon
+    reporting.dim_card_reporting ||--o{ reporting.fact_pokemon_card_price : card
+    reporting.dim_date_reporting ||--o{ reporting.fact_pokemon_card_price : day
 ```
 
 
@@ -320,7 +314,7 @@ Schema 1 betrachtet Pokémon, Schema 2 konkrete Karten und Schema 3 ihre Verknü
 1. **Dimensionen aufbauen:** Daten für Pokémon, Karten und Tage aus den Core-Dimensionen laden; künstliche Schlüssel erzeugen oder stabil wiederverwenden.
 2. **Competitive-Aggregation vorbereiten:** Deck-Ergebnisse mit den passenden Topic-Tabellen verbinden; sicherstellen, dass pro Deck und Analyseobjekt nur eine Zeile zugrunde liegt.
 3. **Tagesbezogene Gesamtzahl der Decks berechnen:** Den Nenner `total_decks` pro Datum unabhängig von Pokémon und Karten bestimmen.
-4. **Preise aggregieren:** `CORE_CARD_PRICE` zuerst von Karte × Druckvariante × Tag auf Karte × Tag reduzieren.
+4. **Preise aggregieren:** `core.core_card_price` zuerst von Karte × Druckvariante × Tag auf Karte × Tag reduzieren.
 5. **Fakten befüllen:** Die Ergebnisse anhand ihrer jeweiligen Schlüssel und Grain-Definitionen in die drei Star-Schemas einfügen.
 6. **Kennzahlen validieren:** Eineindeutigkeit der Faktenschlüssel, korrekte Fremdschlüssel, keine unbeabsichtigte Vervielfachung durch Joins und sinnvolle Nenner prüfen.
 
