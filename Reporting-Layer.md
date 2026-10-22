@@ -128,7 +128,7 @@ core.topic_base_stats_vs_competitive (deck_id, pokemon_id, pokemon_copy_count)
 
 **Analysefrage:** Hängen der Marktpreis einer Sammelkarte und ihre Competitive-Nutzung beziehungsweise die Performance der Decks, die sie spielen, zusammen? Zum Beispiel: Sind oft verwendete Karten tendenziell teurer? Geht eine steigende Nutzung mit Preisänderungen einher?
 
-**Grain:** Das Grain ist **eine Karte × ein Kalendertag**. Die beiden Datenarten Competitive-Nutzung und Marktpreis werden auf denselben Tagesbezug ausgerichtet. Der Versuch hier **eine Karte × ein Kalendertag für das competitive Play x ein Kalendertag für den Preis ** als Grain zu verwenden, ist an der Menge der entstehenden Datenbankeinträge gescheitert.
+**Grain:** Das Grain ist **eine Karte × ein Kalendertag**. Die beiden Datenarten Competitive-Nutzung und Marktpreis werden auf denselben Tagesbezug ausgerichtet. Der Versuch hier **eine Karte × ein Kalendertag für das competitive Play x ein Kalendertag für den Preis** als Grain zu verwenden, ist an der Menge der entstehenden Datenbankeinträge gescheitert.
 
 Der zusammengesetzte fachliche Schlüssel (`card_key`, `date_key`) bezeichnet genau eine Auswertungszeile für eine Karte an einem Tag. Das Preisfeld kann fehlen, auch wenn Competitive-Daten vorliegen.
 
