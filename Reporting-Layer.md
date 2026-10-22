@@ -104,8 +104,8 @@ erDiagram
         bigint ties
     }
 
-    reporting.dim_pokemon_reporting ||--o{ reporting.fact_pokemon_competitive : pokemon
-    reporting.dim_date_reporting ||--o{ reporting.fact_pokemon_competitive : day
+    reporting.dim_pokemon_reporting ||--o{ reporting.fact_pokemon_competitive : ""
+    reporting.dim_date_reporting ||--o{ reporting.fact_pokemon_competitive : ""
 ```
 
 `pokemon_key` und `date_key` sind `integer NOT NULL`. Die sechs Mengen- und Ergebniskennzahlen `total_decks`, `decks_using_pokemon`, `pokemon_copy_count`, `wins`, `losses` und `ties` sind `bigint NOT NULL`.
@@ -180,8 +180,8 @@ erDiagram
         numeric median_market_price
     }
 
-    reporting.dim_card_reporting ||--o{ reporting.fact_card_competitive_price : card
-    reporting.dim_date_reporting ||--o{ reporting.fact_card_competitive_price : day
+    reporting.dim_card_reporting ||--o{ reporting.fact_card_competitive_price : ""
+    reporting.dim_date_reporting ||--o{ reporting.fact_card_competitive_price : ""
 ```
 
 | Fakt / Kennzahl | Bedeutung |
@@ -266,9 +266,9 @@ erDiagram
         numeric median_market_price
     }
 
-    reporting.dim_pokemon_reporting ||--o{ reporting.fact_pokemon_card_price : pokemon
-    reporting.dim_card_reporting ||--o{ reporting.fact_pokemon_card_price : card
-    reporting.dim_date_reporting ||--o{ reporting.fact_pokemon_card_price : day
+    reporting.dim_pokemon_reporting ||--o{ reporting.fact_pokemon_card_price : ""
+    reporting.dim_card_reporting ||--o{ reporting.fact_pokemon_card_price : ""
+    reporting.dim_date_reporting ||--o{ reporting.fact_pokemon_card_price : ""
 ```
 
 `pokemon_key`, `card_key` und `date_key` sind `integer NOT NULL`; alle Preiskennzahlen verwenden `numeric`.
@@ -332,13 +332,13 @@ erDiagram
         numeric max_market_price
         numeric median_market_price
     }
-    reporting.dim_pokemon_reporting ||--o{ reporting.fact_pokemon_competitive : pokemon
-    reporting.dim_date_reporting ||--o{ reporting.fact_pokemon_competitive : day
-    reporting.dim_card_reporting ||--o{ reporting.fact_card_competitive_price : card
-    reporting.dim_date_reporting ||--o{ reporting.fact_card_competitive_price : day
-    reporting.dim_pokemon_reporting ||--o{ reporting.fact_pokemon_card_price : pokemon
-    reporting.dim_card_reporting ||--o{ reporting.fact_pokemon_card_price : card
-    reporting.dim_date_reporting ||--o{ reporting.fact_pokemon_card_price : day
+    reporting.dim_pokemon_reporting ||--o{ reporting.fact_pokemon_competitive : ""
+    reporting.dim_date_reporting ||--o{ reporting.fact_pokemon_competitive : ""
+    reporting.dim_card_reporting ||--o{ reporting.fact_card_competitive_price : ""
+    reporting.dim_date_reporting ||--o{ reporting.fact_card_competitive_price : ""
+    reporting.dim_pokemon_reporting ||--o{ reporting.fact_pokemon_card_price : ""
+    reporting.dim_card_reporting ||--o{ reporting.fact_pokemon_card_price : ""
+    reporting.dim_date_reporting ||--o{ reporting.fact_pokemon_card_price : ""
 ```
 
 
