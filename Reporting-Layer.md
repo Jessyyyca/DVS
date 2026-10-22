@@ -20,21 +20,22 @@ Die Schicht verfolgt insbesondere diese Ziele:
 
 ### 2.1 `reporting.dim_pokemon_reporting`
 
-```text
-reporting.dim_pokemon_reporting
---------------------------------
-pokemon_key             PK  -- künstlicher Schlüssel
-pokemon_id                  -- natürliche / Core-ID
-pokemon_name
-hp
-attack
-defense
-special_attack
-special_defense
-speed
-type_one
-type_two
-base_stat_total             -- berechnetes Attribut (optional materialisiert)
+```mermaid
+erDiagram
+    reporting.dim_pokemon_reporting {
+        int pokemon_key PK
+        int pokemon_id
+        string pokemon_name
+        int hp
+        int attack
+        int defense
+        int special_attack
+        int special_defense
+        int speed
+        string type_one
+        string type_two
+        int base_stat_total
+    }
 ```
 
 Die Pokémon-Dimension beschreibt den Analysegegenstand für Szenario 1 und 3. Sie enthält die Merkmale, nach denen beispielsweise ein Zusammenhang zwischen Basiswerten, Typen und Wettbewerbsnutzung oder Marktpreisen ermittelt werden kann. `base_stat_total = hp + attack + defense + special_attack + special_defense + speed` fasst die sechs Basiswerte zusammen; für differenzierte Analysen bleiben die Einzelwerte erhalten.
@@ -43,29 +44,31 @@ Die Pokémon-Dimension beschreibt den Analysegegenstand für Szenario 1 und 3. S
 
 ### 2.2 `reporting.dim_card_reporting`
 
-```text
-reporting.dim_card_reporting
---------------------------------
-card_key                PK  -- künstlicher Schlüssel
-card_id                     -- Core-ID
-card_name
-rarity
+```mermaid
+erDiagram
+    reporting.dim_card_reporting {
+        int card_key PK
+        int card_id
+        string card_name
+        string rarity
+    }
 ```
 
 Die Kartendimension unterstützt Analysen nach konkreter Karte, Set und Seltenheit. Eine gemeinsame `card_key` stellt sicher, dass der Preis einer Karte und ihre Competitive-Nutzung auf **dieselbe Kartenidentität** bezogen werden.
 
 ### 2.3 `reporting.dim_date_reporting`
 
-```text
-reporting.dim_date_reporting
---------------------------------
-date_key                PK  -- künstlicher Schlüssel
- date_id                    -- Datums-ID aus Core
- full_date
- day
- month
- quarter
- year
+```mermaid
+erDiagram
+    reporting.dim_date_reporting {
+        int date_key PK
+        int date_id
+        date full_date
+        int day
+        int month
+        int quarter
+        int year
+    }
 ```
 
 Die gemeinsame Datumsdimension erlaubt Gruppierungen und Vergleiche nach Tag, Monat, Quartal und Jahr. Sie wird von allen drei Fakten genutzt. Wenn eine Faktentabelle **zwei verschiedene Datumsrollen** benötigt (Competitive-Tag und Preisstichtag), kann dieselbe Dimension zweimal über verschiedene Fremdschlüssel angebunden werden. Dies bezeichnet man als *Role-Playing Dimension*.
@@ -82,17 +85,27 @@ Die drei Star-Schemas verwenden bewusst dieselben Pokémon-, Karten- und Datumsd
 
 **Grain:** **Ein Pokémon × ein Competitive-Beobachtungstag**. Jede Kombination aus `pokemon_key` und `date_key` darf genau einmal vorkommen.
 
-```text
-reporting.fact_pokemon_competitive
---------------------------------
-pokemon_key             PK, FK
-date_key                PK, FK
-total_decks
-decks_using_pokemon
-pokemon_copy_count
-wins
-losses
-ties
+```mermaid
+erDiagram
+    reporting.dim_pokemon_reporting {
+        int pokemon_key PK
+    }
+    reporting.dim_date_reporting {
+        int date_key PK
+    }
+    reporting.fact_pokemon_competitive {
+        int pokemon_key PK,FK
+        int date_key PK,FK
+        bigint total_decks
+        bigint decks_using_pokemon
+        bigint pokemon_copy_count
+        bigint wins
+        bigint losses
+        bigint ties
+    }
+
+    reporting.dim_pokemon_reporting ||--o{ reporting.fact_pokemon_competitive : pokemon
+    reporting.dim_date_reporting ||--o{ reporting.fact_pokemon_competitive : day
 ```
 
 `pokemon_key` und `date_key` sind `integer NOT NULL`. Die sechs Mengen- und Ergebniskennzahlen `total_decks`, `decks_using_pokemon`, `pokemon_copy_count`, `wins`, `losses` und `ties` sind `bigint NOT NULL`.
@@ -114,12 +127,20 @@ ties
 
 ### 3.3 Datenherkunft
 
-```text
-core.topic_base_stats_vs_competitive (deck_id, pokemon_id, pokemon_copy_count)
-            + core.core_deck_result (deck_id, date_id, wins, losses, ties)
-            + core.dim_pokemon → reporting.dim_pokemon_reporting
-            + core.dim_date    → reporting.dim_date_reporting
-            = reporting.fact_pokemon_competitive (pokemon_key, date_key, aggregierte Werte)
+```mermaid
+flowchart LR
+    core_topic["core.topic_base_stats_vs_competitive<br/>(deck_id, pokemon_id, pokemon_copy_count)"]
+    core_deck["core.core_deck_result<br/>(deck_id, date_id, wins, losses, ties)"]
+    core_pokemon["core.dim_pokemon"]
+    core_date["core.dim_date"]
+    rep_pokemon["reporting.dim_pokemon_reporting"]
+    rep_date["reporting.dim_date_reporting"]
+    fact["reporting.fact_pokemon_competitive<br/>(pokemon_key, date_key, aggregierte Werte)"]
+
+    core_topic --> fact
+    core_deck --> fact
+    core_pokemon --> rep_pokemon --> fact
+    core_date --> rep_date --> fact
 ```
 
 ## 4. Star-Schema 2: Kartenpreise und Competitive-Performance
@@ -136,21 +157,31 @@ Der zusammengesetzte fachliche Schlüssel (`card_key`, `date_key`) bezeichnet ge
 
 ### 4.2 Faktentabelle
 
-```text
-reporting.fact_card_competitive_price
---------------------------------
-card_key                PK, FK
-date_key                PK, FK
-total_decks
-decks_using_card
-card_copy_count
-wins
-losses
-ties
-market_price             -- numeric, NULL erlaubt
-min_market_price         -- numeric, NULL erlaubt
-max_market_price         -- numeric, NULL erlaubt
-median_market_price      -- numeric, NULL erlaubt
+```mermaid
+erDiagram
+    reporting.dim_card_reporting {
+        int card_key PK
+    }
+    reporting.dim_date_reporting {
+        int date_key PK
+    }
+    reporting.fact_card_competitive_price {
+        int card_key PK,FK
+        int date_key PK,FK
+        bigint total_decks
+        bigint decks_using_card
+        bigint card_copy_count
+        bigint wins
+        bigint losses
+        bigint ties
+        numeric market_price
+        numeric min_market_price
+        numeric max_market_price
+        numeric median_market_price
+    }
+
+    reporting.dim_card_reporting ||--o{ reporting.fact_card_competitive_price : card
+    reporting.dim_date_reporting ||--o{ reporting.fact_card_competitive_price : day
 ```
 
 | Fakt / Kennzahl | Bedeutung |
@@ -193,16 +224,15 @@ Die vier Preiskennzahlen dürfen bei Aggregationen über Tage nicht einfach **su
 
 ### 4.5 Datenherkunft
 
-```text
-core.topic_card_competitive -- deck_id --> core.core_deck_result
-          |                                            |
-          +--> card_id                              date_id
-                   |                                    |
-        reporting.dim_card_reporting       reporting.dim_date_reporting
-                   |
-core.core_card_price -- card_id + date_id --> Preisaggregation über printing_type
-                   |
-        reporting.fact_card_competitive_price
+```mermaid
+flowchart LR
+    topic["core.topic_card_competitive"] -->|"deck_id"| deck["core.core_deck_result"]
+    topic -->|"card_id"| card_dim["reporting.dim_card_reporting"]
+    deck -->|"date_id"| date_dim["reporting.dim_date_reporting"]
+    price["core.core_card_price"] -->|"card_id + date_id"| agg["Preisaggregation<br/>über printing_type"]
+    card_dim --> fact["reporting.fact_card_competitive_price"]
+    date_dim --> fact
+    agg --> fact
 ```
 
 Die Preisaggregation **muss vor dem Join** mit den Deck-Zeilen erfolgen. Andernfalls vervielfachen mehrere `printing_type`-Datensätze die Competitive-Kennzahlen.
@@ -215,16 +245,30 @@ Die Preisaggregation **muss vor dem Join** mit den Deck-Zeilen erfolgen. Andernf
 
 **Grain:** **Ein Pokémon × eine konkrete Karte × ein Preisbeobachtungstag**. Die `pokemon_key` ist hier zusätzlich zur `card_key` erforderlich, weil die analysierte Verknüpfung zwischen Pokémon-Eigenschaften und Kartenpreisen explizit auswertbar bleiben soll.
 
-```text
-reporting.fact_pokemon_card_price
---------------------------------
-pokemon_key             PK, FK
-card_key                PK, FK
-date_key                PK, FK
-market_price            numeric, NOT NULL
-min_market_price        numeric, NOT NULL
-max_market_price        numeric, NOT NULL
-median_market_price     numeric, NULL erlaubt
+```mermaid
+erDiagram
+    reporting.dim_pokemon_reporting {
+        int pokemon_key PK
+    }
+    reporting.dim_card_reporting {
+        int card_key PK
+    }
+    reporting.dim_date_reporting {
+        int date_key PK
+    }
+    reporting.fact_pokemon_card_price {
+        int pokemon_key PK,FK
+        int card_key PK,FK
+        int date_key PK,FK
+        numeric market_price
+        numeric min_market_price
+        numeric max_market_price
+        numeric median_market_price
+    }
+
+    reporting.dim_pokemon_reporting ||--o{ reporting.fact_pokemon_card_price : pokemon
+    reporting.dim_card_reporting ||--o{ reporting.fact_pokemon_card_price : card
+    reporting.dim_date_reporting ||--o{ reporting.fact_pokemon_card_price : day
 ```
 
 `pokemon_key`, `card_key` und `date_key` sind `integer NOT NULL`; alle Preiskennzahlen verwenden `numeric`.
