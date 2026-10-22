@@ -11,7 +11,7 @@ Als Grundlage dient das bereits im Gesamtprojekt erstellte PostgreSQL-Data-Wareh
 
 Die Datenbank wurde in Grafana über **Connections → Data sources** als PostgreSQL-Datenquelle `grafana-postgresql-datasource` eingerichtet und als Standard festgelegt. Die Verbindung verwendet den Host `postgres-dhw`, die Datenbank `db` und den Datenbankbenutzer `dhw` (Authentifizierung per hinterlegtem Passwort). Die Abfragen greifen auf die vorhandene View `reporting.v_pokemon_competitive_metrics` zu. Diese stellt Pokémon-Merkmale, Datumsangaben sowie Turnierkennzahlen gemeinsam für das Reporting bereit.
 
-Die Diagramme basieren auf SQL-Abfragen in Grafana. Die Win-Rate wird aus `wins / (wins + losses + ties) × 100` berechnet; die Usage-Rate aus `decks_using_pokemon / total_decks × 100`. Dafür werden zunächst die jeweiligen Zähler und Nenner über den gewählten Auswertungsbereich summiert.
+Die Diagramme basieren auf SQL-Abfragen in Grafana. Die Win-Rate wird aus `wins / (wins + losses + ties) × 100` berechnet während sich die Usage-Rate aus `decks_using_pokemon / total_decks × 100` ermittelt. Dafür werden zunächst die jeweiligen Zähler und Nenner über den gewählten Auswertungsbereich summiert.
 
 Das Dashboard enthält folgende Darstellungen:
 
