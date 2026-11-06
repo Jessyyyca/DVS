@@ -20,6 +20,7 @@ Zur Beantwortung der Fragen wurden folgende Quellsysteme genutzt:
 - Daten zu Pokemon: PokeAPI - https://pokeapi.co/
 - Daten zu Karten-Preisen: TickerMint - https://tickermint.cards/developers
 - Daten zu Turniern: Limitless - https://docs.limitlesstcg.com/developer.html
+
 Die PokeAPI stellt alle Daten rund um die Eigenschaften der Pokemon zur Verfügung, die zur Beantwortung der 1. und 3. Fragestellung notwendig sind. So werden jedem Pokemon ihre Basestats und 1-2 Typen zugeordnet.
 Tickermint bietet eine Übersicht über die täglichen Preise der Pokemon-Karten, die im Online-Handel erziehlt werden, sowie Informationen zur Ausführung der Karten (diese können mit einer Holofolie versehen sein, was im Allgemeinen den Wert steigert).
 Zuletzt versorgt uns Limitless mit Daten zu Turnieren - welche Pokemonkarten in einem Deck genutzt und wie viele Spiele mit diesem Deck gespielt und davon gewonnen, verloren oder mit einem einen Unentschieden abgeschlossen wurden.  
