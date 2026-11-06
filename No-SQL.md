@@ -49,7 +49,7 @@ root@04ffcd134881:/# mongorestore --archive=sampledata.archive --nsInclude="samp
 ```
 
 ### CRUD-Operationen an MongoDB
-zu sehen in [mongodb/src/main.py](mongodb/src/main.py)
+zu sehen in [mongodb/src/main.py](mongodb/src/mongodb/main.py)
 
 Alle CRUD-Operationen waren relativ straight forward, da `pymongo` (MongoDBs Python Bibliothek) sehr benutzerfreundlich und an Python angenähert war. Beispielsweise sah wie folgt das Erstellen eines Datensatzes aus:
 ```py
@@ -84,4 +84,4 @@ sales.insert_one(new_sale)
 Als relationale Datenbank, in welche wir die MongoDB-Daten beispielhaft migrieren wollen, haben wir uns für DuckDB entschieden. Hierfür gibt es primär zwei Gründe:
 - DuckDB ist eine "Analytical Database" und würde somit gut geeignet sein als Data-Warehouse-Datenbank
 - DuckDB ist eine In-Memory-Datenbank und daher sehr gut geeignet zum Migrieren von Beispiel-Daten.
-Die kommentierte Migrations-Datei liegt unter [mongodb/src/etl_python_duckdb.py](mongodb/src/etl_python_duckdb.py). 
+Die kommentierte Migrations-Datei liegt unter [mongodb/src/etl_python_duckdb.py](mongodb/src/mongodb/etl_python_duckdb.py). 
