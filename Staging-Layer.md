@@ -34,7 +34,7 @@ erDiagram
     staging.type ||--o{ staging.pokemon_type : "kategorisiert"
 ```
 
-Es gibt also Pokemon und Typen. Mithilfe von `staging.pokemon_type` wird typ id `stating.type.url_id` mit Pokemon ID `staging.pokemon.id` gemappt. 
+Es gibt also Pokemon und Typen. Mithilfe von `staging.pokemon_type` wird typ id `staging.type.url_id` mit Pokemon ID `staging.pokemon.id` gemappt. 
 
 ### Limitless API
 Limitless ist eine Webseite, auf welcher Pokemon Turniere (online) stattfinden. Jedes der Turniere ist per API abfragbar. 
@@ -142,3 +142,8 @@ erDiagram
     staging.card_product ||--o{ staging.printing : "hat Printings"
     staging.printing ||--o{ staging.daily_price : "tagesaktuelle Preise"
 ```
+### Die Logical Datamap
+Die [Logical-Datamap.ods](Logical-Datamap.ods) bietet einen Überblick über den Aufbau der Datenbank. Im Abschnitt Staging wurden dabei die Tabellennamen mit einem Präfix versehen, der angibt, aus welchem Quellsystem die darin enthaltenen Daten stammen. Dabei steht:
+- P für die Daten zu den Eigenschaften der Pokemon aus der PokemonAPI,
+- C für die Preisdaten der Karten aus der Tickermint API und
+- T für die Turnierdaten aus der Limitless API
