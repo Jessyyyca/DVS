@@ -125,7 +125,7 @@ Daher die scharfen kannten, da wir hier ein 2D-Abbild aus dem eigentlichen 4D-Ke
 
 ### 1.2.2 K-Means
 
-[machine_lerning/kmeans.py](machine_lerning/kmeans.py): Erstellt ein K-Means-Cluster des bereits erwähnten Iris-Datensatz, wobei dem Algorithmus jedoch nicht das Ergebnis gegeben wird.
+[machine_learning/kmeans.py](machine_learning/kmeans.py): Erstellt ein K-Means-Cluster des bereits erwähnten Iris-Datensatz, wobei dem Algorithmus jedoch nicht das Ergebnis gegeben wird.
 Zum Verständnis des Outputs ist folgender Hinweis relevant: 
 Im Datensatz aus den 150 Blumen-Einträgen kommen Sequenziell zuerst 50 Blüten der Klasse "Setosa", dann 50 der Klasse "Versicolor" und schlussendlich 50 der Klasse "Virginica" - sie sind also nicht zufällig verteilt.
 Ein Aufruf des Programmes:
