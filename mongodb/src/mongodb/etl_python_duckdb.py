@@ -7,9 +7,10 @@ import duckdb
 
 from . import get_dsn
 
-# -----------------------------------
-# 1. EXTRACT: MongoDB
-# -----------------------------------
+#---
+# EXTRACT from MongoDB
+#---
+
 print(get_dsn())
 mongo = MongoClient(get_dsn())
 sales_collection = mongo["sample_supplies"]["sales"]
@@ -56,9 +57,9 @@ for sale in sales_collection.find():
 
 mongo.close()
 
-# -----------------------------------
-# 3. LOAD: DuckDB
-# -----------------------------------
+#---
+# LOAD into DuckDB
+#---
 
 # make a file named warehouse.duckdb which we use as db
 con = duckdb.connect("warehouse.duckdb")
@@ -66,6 +67,7 @@ con = duckdb.connect("warehouse.duckdb")
 con.execute("BEGIN TRANSACTION")
 
 try:
+    # create fact_sales table
     con.execute("""
         CREATE OR REPLACE TABLE fact_sales (
             sale_id VARCHAR PRIMARY KEY,
@@ -78,6 +80,7 @@ try:
         )
     """)
 
+    # create fact_sales_items table
     con.execute("""
         CREATE OR REPLACE TABLE fact_sales_items (
             sale_id VARCHAR,
@@ -92,12 +95,14 @@ try:
         )
     """)
 
+    # iterate each sales row and insert it
     if sales_rows:
         con.executemany("""
             INSERT INTO fact_sales
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """, sales_rows)
 
+    # iterate each item row and insert it
     if item_rows:
         con.executemany("""
             INSERT INTO fact_sales_items
