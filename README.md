@@ -45,5 +45,6 @@ Informationen zu den einzelnen Kapiteln finden sich hier:
 - Staging Layer: in [Staging-Layer.md](Staging-Layer.md) beschrieben
 - Core Layer: in [Core-Layer.md](Core-Layer.md) beschrieben
 - Reporting Layer: in [Reporting-Layer.md](Reporting-Layer.md) beschrieben
+- Reporting Tutorial Dashboard (Grafana): in [Reporting-Tutorial-Grafana](https://github.com/Jessyyyca/DVS/blob/main/Reporting-Tutorial-Grafana.md)
 - Machine Learning: in [Machine-Learning.md](Machine-Learning.md) beschrieben
 - No-SQL: in [No-SQL.md](No-SQL.md) beschrieben
