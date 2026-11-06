@@ -52,4 +52,5 @@ Informationen zu den einzelnen Kapiteln finden sich hier:
 ## Unsere Implementierungen
 
 - Data Warehouse: [PG Web](https://dhw_web.inu-the-bot.com/)
+![alt text](img/datawarehouse.png)
 - Grafana-Dashboard: [Grafana](https://dhw_grafana.inu-the-bot.com/d/pokemon-competitive-recovery/pokemons-und-competitive-play-e28094-recovery?from=2025-03-11T23%3A00%3A00.000Z&to=2026-09-14T22%3A00%3A00.000Z&timezone=browser&var-pokemon_type=%24__all&var-pokemon=%24__all&var-orientation=default&var-drill_across_metric=win_rate&var-granularity=week&var-min_bst=0&var-max_bst=999)
