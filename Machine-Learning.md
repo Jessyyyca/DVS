@@ -1,22 +1,22 @@
-# Anwendung im Data Warehouse
-
-## **Supervised Learning:** 
+# 1 Anwendung im Data Warehouse
+## 1.1 Generelle Einordnung
+### 1.1.1 **Supervised Learning:** 
 
 Vorhersagen und Klassifizierung (basierend auf bekannten Zielwerten) 
 
-## **Unsupervised Learning:** 
+### 1.1.2 **Unsupervised Learning:** 
 
 Gruppen/Muster/Zusammenhänge erkennen (die man vorher nicht kennt) 
 
-## **Regression:** 
+### 1.1.3 **Regression:** 
 
 Vorhersage anhand historischer Daten (z.B Umsatz, Nachfrage, Verkaufszahlen) 
 
-## **Decision Tree, Random Forest:** 
+### 1.1.4 **Decision Tree, Random Forest:** 
 
 DT: ein Entscheidungsbaum → Entscheidung anhand von festen Regeln RF: Kombinationen mehrerer Entscheidungsbäume → robuster als Decision Tree 
 
-## **SVM:** 
+### 1.1.5 **SVM:** 
 
 Klassifizierung anhand von Grenzen (z.B, Funktion), vor allem auch hochdimensional 
 
@@ -28,23 +28,23 @@ Bedingungen:
 
 - historische Daten 
 
-## **Naive Bayes:** 
+### 1.1.6 **Naive Bayes:** 
 
 nutzt (bedingte) Wahrscheinlichkeiten für Klassifizierung (Satz von Bayes), z.B Textklassifizierung in positiv/negativ 
 
-## **K-Means-Algorithmus:** 
+### 1.1.7 **K-Means-Algorithmus:** 
 
 Versuch, Klassen zu identifizieren, die vorher nicht festgelegt sind; z.B. Klassifizierung von Kunden nach hoher Einkaufswert, billige Produkte, Produktgruppen 
 
-## **PCA (Principle Component Analysis):** 
+### 1.1.8 **PCA (Principle Component Analysis):** 
 
 Reduktion der Anzahl von Merkmalen, bleibt dabei möglichst genau; erfasst vor allem lineare Zusammenhänge; Beispiel: 1000 Kundenmerkmale, davon aber vielleicht nur wenige relevant bzw. viele voneinander abhängig → Ermittlung der wichtigen Merkmale 
 
-## **T-SNE (T-distributed Stochastic Neighbor Embedding):** 
+### 1.1.9 **T-SNE (T-distributed Stochastic Neighbor Embedding):** 
 
 Reduktion auf zwei- bzw dreidimensionale Visualisierung, dabei möglichst Erhalt von Nachbarschaften (hauptsächlich Visualisierung, eher weniger für tatsächliche Klassifizierung) 
 
-## **Apriori algorithm:** 
+### 1.1.10 **Apriori algorithm:** 
 
 Erkennung von häufig gemeinsamen Merkmalen (Kunden die A kauften, kauften häufig auch B) Beispiel Amazon: 
 
@@ -56,7 +56,7 @@ Datenbank über Kundenkäufe
 
 selten wechselnde Produkte (ergibt nur Sinn, wenn Produkte über einen längeren Zeitraum verfügbar sind, andernfalls würden Empfehlungen auf nur wenigen Datensätzen basieren) 
 
-## **Welche Möglichkeiten bietet ein Data Warehouse, die Arbeitsschritte Data Collection, Data Cleaning, Feature Engineering und Exploratory Data Analysis zu unterstützen?** 
+### 1.1.11 **Welche Möglichkeiten bietet ein Data Warehouse, die Arbeitsschritte Data Collection, Data Cleaning, Feature Engineering und Exploratory Data Analysis zu unterstützen?** 
 
 _Data Collection:_ 
 
@@ -70,17 +70,19 @@ _Feature Engineering:_
 
 Ziel des Feature Engineering ist aus vorhandenen Daten neue Merkmale für die Analyse zu erzeugen. Im Data Warehouse geschieht dies vor allem durch die Berechnung neuer Kennzahlen und die Kombination von Daten aus verschiedenen Relationen. 
 
-### _Exploratory Data Analysis (EDA):_ 
+#### _Exploratory Data Analysis (EDA):_ 
 
 EDA dient der Untersuchung von Daten, der Erkennung von Mustern und dem Verstehen von Zusammenhängen. Im Data Warehouse kann dies durch Datenzusammenführung ermöglicht werden, wobei Daten über einen bestimmten Zeitraum, eine Region oder verschiedene Kundengruppen betrachtet werden. 
 
 
-## **Unsere Beispiele:**
+## 1.2 **Unsere Beispiele:**
+---
+
 Wir haben uns bei Supervised-Learning für die Support Vector Machine entschieden und bei Unsupervised-Learning für K-Means. 
 In beiden Beispielen wurde der Iris-Datensatz (Schwertlilien) benutzt - einmal mit der Ergebnis-Spalte für SVM und ohne in K-Means. Unsere Beispiel-ML-Implementierungen:
 
 
-### Support Vector Machine
+### 1.2.1 Support Vector Machine
 [machine_learning/svc.py](machine_learning/svc.py): Erstellt eine Support Vector Machine mit einem Polynom von Grad 13. Daher könnte es beim Start etwas laden. Nachdem die SVC erstellt wurde, wird der Nutzer im Terminal aufgefordert Beispiel-Blütenlängen einzugeben, welche folgend mithilfe der Support Vector Machine zugeordnet werden.
 Ein Beispielaufruf sieht wie folgt aus: 
 ```bash
@@ -122,9 +124,9 @@ Die SVC aus dem Beispiel mit Polynom-Grad 13 sieht grafisch dargestellt wie folg
 Hierbei sollte jedoch beachtet werden, dass das nur eine 2D-Darstellung ist, wir allerdings vier Blumenattribute haben. 
 Daher die scharfen kannten, da wir hier ein 2D-Abbild aus dem eigentlichen 4D-Kernel-Space "rausschneiden". 
 
-### K-Means
+### 1.2.2 K-Means
 
-[machine_lerning/kmeans.py](machine_lerning/kmeans.py): Erstellt ein K-Means-Kluster des bereits erwähnten Iris-Datensatz, wobei dem Algorithmus jedoch nicht das Ergebnis gegeben wird.
+[machine_lerning/kmeans.py](machine_lerning/kmeans.py): Erstellt ein K-Means-Cluster des bereits erwähnten Iris-Datensatz, wobei dem Algorithmus jedoch nicht das Ergebnis gegeben wird.
 Zum Verständnis des Outputs ist folgender Hinweis relevant: 
 Im Datensatz aus den 150 Blumen-Einträgen kommen Sequenziell zuerst 50 Blüten der Klasse "Setosa", dann 50 der Klasse "Versicolor" und schlussendlich 50 der Klasse "Virginica" - sie sind also nicht zufällig verteilt.
 Ein Aufruf des Programmes:
@@ -159,7 +161,7 @@ Enter 4 measurements in cm (or q to quit)
 sepal length in cm: q 
 ```
 Auch hier wird zuerst wieder der Datensatz mithilfe von Pandas ausgegeben. Das dient der späteren Eingabe, damit man Beipsieldaten zu den Blüten sieht, da sich aus unserer Gruppe - wenig überraschend - niemand so gut auskennt, dass er 
-anhand der Blütenform eine Schwertlilien-Klasse zuordnen könnte. Folgend kommt das Output, wie die K-Means Kluster erstellt wurden:
+anhand der Blütenform eine Schwertlilien-Klasse zuordnen könnte. Folgend kommt das Output, wie die K-Means Cluster erstellt wurden:
 ```
 [1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
  1 1 1 1 1 1 1 1 1 1 1 1 1 2 0 2 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
@@ -168,12 +170,12 @@ anhand der Blütenform eine Schwertlilien-Klasse zuordnen könnte. Folgend kommt
  2 0]
  ```
 Wie erwähnt: der Original-Datensatz hat immer 50 Einträge einer Klasse am Stück. Mithilfe von K-Means 
-werden sehr ähnliche Kluster gebildet. 0, 1 und 2 sind dabei die Cluster-Klassen, da der Algorithmus 
+werden sehr ähnliche Cluster gebildet. 0, 1 und 2 sind dabei die Cluster-Klassen, da der Algorithmus 
 die tatsächlichen Klassennamen nicht kennt. Es gibt ein einigen Punkten kleine Abweichungen, da nicht strikt 
 nach 50 Einträgen einer Klasse 50 Einträge der nächsten folgen, sondern es gibt immer einen gewissen kurzen Übergang und somit falsche Zuordnungen - aber damit war zu rechnen. Letztendlich wird der Nutzer wirder nach Beispielen abgefragt und das Programm mappt 0, 1 und 2 programmatisch wieder zu den Klassennamen.
 
-Grafisch kann das K-Means Kluster aus der Beispieldatei wie folgt dargestellt werden:
+Grafisch kann das K-Means Cluster aus der Beispieldatei wie folgt dargestellt werden:
 
 ![machine_learning/kmeans_clusters.png](machine_learning/kmeans_clusters.png)
 
-Auch hier sind die paar wenigen falschen Zuordnungen gut erkennbar - ebenso wie die grundlegend richtig erstellten drei Kluster.
+Auch hier sind die paar wenigen falschen Zuordnungen gut erkennbar - ebenso wie die grundlegend richtig erstellten drei Cluster.
