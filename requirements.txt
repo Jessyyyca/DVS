@@ -1,2 +1,0 @@
-# Deprecated: dependencies live in pyproject.toml. Use `uv sync --group dev`.
-# (This file will be removed once the team migrates.)
