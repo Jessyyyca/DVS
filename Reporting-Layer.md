@@ -374,4 +374,4 @@ Schema 1 betrachtet Pokémon, Schema 2 konkrete Karten und Schema 3 ihre Verknü
 
 
 
-In [Reporting-Tutorial-Grafna.md](https://github.com/Jessyyyca/DVS/blob/main/Reporting-Tutorial-Grafana.md) geht es mit dem Reporting in Dashboard-Form weiter.
+In [Reporting-Tutorial-Grafana.md](https://github.com/Jessyyyca/DVS/blob/main/Reporting-Tutorial-Grafana.md) geht es mit dem Reporting in Dashboard-Form weiter.
