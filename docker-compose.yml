@@ -2,7 +2,7 @@
 #
 # Usage:
 #   docker compose up -d
-#   export DVS_DB_DSN="postgres://dhw:Bride0-Viable-Outrage@localhost:5433/db?sslmode=disable"
+#   export DVS_DB_DSN="postgres://dhw:password@localhost:5433/db?sslmode=disable"
 #   dvs limitless --from-date 2026-01-01 --test
 #   dvs generate-sql | docker compose exec -T postgres psql -v ON_ERROR_STOP=1 -U dhw -d db
 #
@@ -19,7 +19,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: dhw
-      POSTGRES_PASSWORD: Bride0-Viable-Outrage
+      POSTGRES_PASSWORD: "password"
       POSTGRES_DB: db
     ports:
       - "5433:5432"
