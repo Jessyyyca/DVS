@@ -34,3 +34,4 @@ Kennzahlen:
 - Staging Layer: in [Staging-Layer.md](Staging-Layer.md) beschrieben
 - Core Layer: in [Core-Layer.md](Core-Layer.md) beschrieben
 - Reporting Layer: in [Reporting-Layer.md](Reporting-Layer.md) beschrieben
+- Machine Learning: in [Machine-Learning.md](Machine-Learning.md) schrieben
