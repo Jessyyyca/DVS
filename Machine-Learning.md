@@ -1,22 +1,22 @@
 # 1 Anwendung im Data Warehouse
 ## 1.1 Generelle Einordnung
-### 1.1.1 **Supervised Learning:** 
+### 1.1.1 Supervised Learning: 
 
 Vorhersagen und Klassifizierung (basierend auf bekannten Zielwerten) 
 
-### 1.1.2 **Unsupervised Learning:** 
+### 1.1.2 Unsupervised Learning: 
 
 Gruppen/Muster/Zusammenhänge erkennen (die man vorher nicht kennt) 
 
-### 1.1.3 **Regression:** 
+### 1.1.3 Regression: 
 
 Vorhersage anhand historischer Daten (z.B Umsatz, Nachfrage, Verkaufszahlen) 
 
-### 1.1.4 **Decision Tree, Random Forest:** 
+### 1.1.4 Decision Tree, Random Forest: 
 
 DT: ein Entscheidungsbaum → Entscheidung anhand von festen Regeln RF: Kombinationen mehrerer Entscheidungsbäume → robuster als Decision Tree 
 
-### 1.1.5 **SVM:** 
+### 1.1.5 SVM: 
 
 Klassifizierung anhand von Grenzen (z.B, Funktion), vor allem auch hochdimensional 
 
@@ -28,23 +28,23 @@ Bedingungen:
 
 - historische Daten 
 
-### 1.1.6 **Naive Bayes:** 
+### 1.1.6 Naive Bayes: 
 
 nutzt (bedingte) Wahrscheinlichkeiten für Klassifizierung (Satz von Bayes), z.B Textklassifizierung in positiv/negativ 
 
-### 1.1.7 **K-Means-Algorithmus:** 
+### 1.1.7 K-Means-Algorithmus: 
 
 Versuch, Klassen zu identifizieren, die vorher nicht festgelegt sind; z.B. Klassifizierung von Kunden nach hoher Einkaufswert, billige Produkte, Produktgruppen 
 
-### 1.1.8 **PCA (Principle Component Analysis):** 
+### 1.1.8 PCA (Principle Component Analysis): 
 
 Reduktion der Anzahl von Merkmalen, bleibt dabei möglichst genau; erfasst vor allem lineare Zusammenhänge; Beispiel: 1000 Kundenmerkmale, davon aber vielleicht nur wenige relevant bzw. viele voneinander abhängig → Ermittlung der wichtigen Merkmale 
 
-### 1.1.9 **T-SNE (T-distributed Stochastic Neighbor Embedding):** 
+### 1.1.9 T-SNE (T-distributed Stochastic Neighbor Embedding): 
 
 Reduktion auf zwei- bzw dreidimensionale Visualisierung, dabei möglichst Erhalt von Nachbarschaften (hauptsächlich Visualisierung, eher weniger für tatsächliche Klassifizierung) 
 
-### 1.1.10 **Apriori algorithm:** 
+### 1.1.10 Apriori algorithm: 
 
 Erkennung von häufig gemeinsamen Merkmalen (Kunden die A kauften, kauften häufig auch B) Beispiel Amazon: 
 
@@ -56,7 +56,7 @@ Datenbank über Kundenkäufe
 
 selten wechselnde Produkte (ergibt nur Sinn, wenn Produkte über einen längeren Zeitraum verfügbar sind, andernfalls würden Empfehlungen auf nur wenigen Datensätzen basieren) 
 
-### 1.1.11 **Welche Möglichkeiten bietet ein Data Warehouse, die Arbeitsschritte Data Collection, Data Cleaning, Feature Engineering und Exploratory Data Analysis zu unterstützen?** 
+### 1.1.11 Welche Möglichkeiten bietet ein Data Warehouse, die Arbeitsschritte Data Collection, Data Cleaning, Feature Engineering und Exploratory Data Analysis zu unterstützen? 
 
 _Data Collection:_ 
 
@@ -75,8 +75,7 @@ Ziel des Feature Engineering ist aus vorhandenen Daten neue Merkmale für die An
 EDA dient der Untersuchung von Daten, der Erkennung von Mustern und dem Verstehen von Zusammenhängen. Im Data Warehouse kann dies durch Datenzusammenführung ermöglicht werden, wobei Daten über einen bestimmten Zeitraum, eine Region oder verschiedene Kundengruppen betrachtet werden. 
 
 
-## 1.2 **Unsere Beispiele:**
----
+## 1.2 Unsere Beispiele:
 
 Wir haben uns bei Supervised-Learning für die Support Vector Machine entschieden und bei Unsupervised-Learning für K-Means. 
 In beiden Beispielen wurde der Iris-Datensatz (Schwertlilien) benutzt - einmal mit der Ergebnis-Spalte für SVM und ohne in K-Means. Unsere Beispiel-ML-Implementierungen:
