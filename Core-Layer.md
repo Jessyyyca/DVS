@@ -25,7 +25,7 @@ Die einzelnen Datenbereiche dürfen nicht allein über ähnlich aussehende Namen
 Die Aufgabenstellung sieht **je Fragestellung eine Topic-Tabelle** sowie die benötigten Dimensionen im Core vor. In unserem Entwurf gibt es deshalb drei Topic-Tabellen. Zusätzlich werden zwei fachlich gemeinsam genutzte Core-Tabellen eingerichtet. Letztere sind eine **projektspezifische Erweiterung** der Mindeststruktur aus der Aufgabenstellung.
 
 - **Topic-Tabellen** stellen genau die Beziehungen bereit, die eine Analyse benötigt, und definieren die entsprechende Granularität.
-- **Gemeinsame Core-Tabellen** speichern Sachverhalte, die mehrere Analysen verwenden, einmal an zentraler Stelle. Diese Aufteilung reduziert redundante Datenhaltung und widersprüchliche Berechnungsgrundlagen; eine bessere Abfrageperformance ist möglich, aber nicht automatisch gewährleistet.
+- **Gemeinsame Core-Tabellen** speichern Sachverhalte, die mehrere Analysen verwenden, einmal an zentraler Stelle. Diese Aufteilung reduziert redundante Datenhaltung und widersprüchliche Berechnungsgrundlagen. Dies ermöglicht eine bessere Abfrageperformance.
 - **Dimensionstabellen** liefern einheitlich benannte, beschreibende Merkmale, entlang derer im Reporting gefiltert und gruppiert wird.
 
 
